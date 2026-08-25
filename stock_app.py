@@ -970,7 +970,8 @@ elif menu == "Item Master":
         with tab1:
 
             with st.form(
-                "add_item_form"
+                "add_item_form",
+                clear_on_submit=True
             ):
 
                 instrument = st.selectbox(
