@@ -684,7 +684,8 @@ elif menu == "Instrument Master":
     with tab1:
 
         with st.form(
-            "add_instrument"
+            "add_instrument",
+            clear_on_submit=True
         ):
 
             instrument_name = (
