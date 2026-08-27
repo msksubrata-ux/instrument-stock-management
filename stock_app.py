@@ -1402,62 +1402,62 @@ else:
         st.info("Please select an Item.")
         st.stop()
 
-    details = get_item_details(
-        instrument,
-        item
-    )
-           
-            item_type = (
-                details["item_type"]
-            )
+details = get_item_details(
+    instrument,
+    item
+)
+       
+        item_type = (
+            details["item_type"]
+        )
 
-            current_stock = (
-                get_current_stock(
-                    instrument,
-                    item
-                )
+        current_stock = (
+            get_current_stock(
+                instrument,
+                item
             )
+        )
 
-            st.write(
-                f"**Type:** {item_type}"
-            )
+        st.write(
+            f"**Type:** {item_type}"
+        )
 
-            st.metric(
-                "Current Stock",
-                current_stock
-            )
-           
+        st.metric(
+            "Current Stock",
+            current_stock
+        )
+       
 
         
-            quantity = st.number_input(
-                "Quantity",
-                min_value=0.01,
-                value=1.0,
-                step=1.0,
-                key="stock_in_qty"
-            )
-            rate = st.number_input(
-                "Rate (₹)",
-                min_value=0.0,
-                value=0.0,
-                step=1.0,
-                key="stock_in_rate"
-            )
+        quantity = st.number_input(
+            "Quantity",
+            min_value=0.01,
+            value=1.0,
+            step=1.0,
+            key="stock_in_qty"
+        )
+        rate = st.number_input(
+            "Rate (₹)",
+            min_value=0.0,
+            value=0.0,
+            step=1.0,
+            key="stock_in_rate"
+        )
 
-            total_value = quantity * rate
+        total_value = quantity * rate
 
-            st.write(
-                f"**Total Value: ₹{total_value:,.2f}**"
-            )
-            remarks = st.text_input(
-                "Supplier / PO No. / Remarks",
-                key="stock_in_remarks"
-            )
+        st.write(
+            f"**Total Value: ₹{total_value:,.2f}**"
+        )
+        remarks = st.text_input(
+            "Supplier / PO No. / Remarks",
+            key="stock_in_remarks"
+        )
 
-            if st.button(
-                "💾 Save Stock IN",
-                type="primary"
-            ):
+        if st.button(
+            "💾 Save Stock IN",
+            type="primary"
+        ):
 
                 (
                     supabase
