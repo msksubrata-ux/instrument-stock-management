@@ -1381,19 +1381,19 @@ else:
         key="stock_in_instrument"
     )
 
-           if instrument == "-- Select Instrument --":
-            st.info("Please select an Instrument.")
-            items = []
-        else:
-            items = get_items(
-                instrument
-            )
+       if instrument == "-- Select Instrument --":
+        st.info("Please select an Instrument.")
+        items = []
+    else:
+        items = get_items(
+            instrument
+        )
 
-        if not items:
+    if not items:
 
-            st.warning(
-                "No Item available."
-            )
+        st.warning(
+            "No Item available."
+        )
 
        
           else:
