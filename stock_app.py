@@ -1380,13 +1380,13 @@ else:
         instrument_options,
         key="stock_in_instrument"
     )
-
-       items = get_items(
+    
+    items = get_items(
     instrument
-)
-
+    )
+    
     if not items:
-
+    
         st.warning(
             "No Item available."
         )
