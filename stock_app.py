@@ -1364,16 +1364,30 @@ elif menu == "Stock IN":
             "No Instrument available."
         )
 
-    else:
+else:
 
-        instrument = st.selectbox(
-            "Instrument",
-            instruments
-        )
+    if st.session_state.pop("reset_stock_in", False):
+        st.session_state["stock_in_instrument"] = "-- Select Instrument --"
+        st.session_state["stock_in_item"] = "-- Select Item --"
+        st.session_state["stock_in_qty"] = 1.0
+        st.session_state["stock_in_rate"] = 0.0
+        st.session_state["stock_in_remarks"] = ""
 
-        items = get_items(
-            instrument
-        )
+    instrument_options = ["-- Select Instrument --"] + instruments
+
+    instrument = st.selectbox(
+        "Instrument",
+        instrument_options,
+        key="stock_in_instrument"
+    )
+
+    if instrument == "-- Select Instrument --":
+    st.info("Please select an Instrument.")
+    items = []
+else:
+    items = get_items(
+        instrument
+    )
 
         if not items:
 
@@ -1381,18 +1395,26 @@ elif menu == "Stock IN":
                 "No Item available."
             )
 
-        else:
+       
+          else:
+
+            item_options = ["-- Select Item --"] + items
 
             item = st.selectbox(
                 "Item",
-                items
+                item_options,
+                key="stock_in_item"
             )
+
+            if item == "-- Select Item --":
+                st.info("Please select an Item.")
+                st.stop()
 
             details = get_item_details(
                 instrument,
                 item
             )
-
+           
             item_type = (
                 details["item_type"]
             )
@@ -1412,10 +1434,7 @@ elif menu == "Stock IN":
                 "Current Stock",
                 current_stock
             )
-            if st.session_state.pop("reset_stock_in", False):
-                st.session_state["stock_in_qty"] = 1.0
-                st.session_state["stock_in_rate"] = 0.0
-                st.session_state["stock_in_remarks"] = ""
+           
 
         
             quantity = st.number_input(
