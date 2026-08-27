@@ -1386,30 +1386,26 @@ else:
     )
     
     if not items:
-    
-        st.warning(
-            "No Item available."
-        )
+    st.warning(
+        "No Item available."
+    )
+else:
+    item_options = ["-- Select Item --"] + items
 
-       
-          else:
+    item = st.selectbox(
+        "Item",
+        item_options,
+        key="stock_in_item"
+    )
 
-            item_options = ["-- Select Item --"] + items
+    if item == "-- Select Item --":
+        st.info("Please select an Item.")
+        st.stop()
 
-            item = st.selectbox(
-                "Item",
-                item_options,
-                key="stock_in_item"
-            )
-
-            if item == "-- Select Item --":
-                st.info("Please select an Item.")
-                st.stop()
-
-            details = get_item_details(
-                instrument,
-                item
-            )
+    details = get_item_details(
+        instrument,
+        item
+    )
            
             item_type = (
                 details["item_type"]
