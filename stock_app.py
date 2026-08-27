@@ -1364,144 +1364,188 @@ elif menu == "Stock IN":
             "No Instrument available."
         )
 
-else:
+    else:
 
-    if st.session_state.pop("reset_stock_in", False):
-        st.session_state["stock_in_instrument"] = "-- Select Instrument --"
-        st.session_state["stock_in_item"] = "-- Select Item --"
-        st.session_state["stock_in_qty"] = 1.0
-        st.session_state["stock_in_rate"] = 0.0
-        st.session_state["stock_in_remarks"] = ""
+        if st.session_state.pop(
+            "reset_stock_in",
+            False
+        ):
+            st.session_state[
+                "stock_in_instrument"
+            ] = "-- Select Instrument --"
 
-    instrument_options = ["-- Select Instrument --"] + instruments
+            st.session_state[
+                "stock_in_item"
+            ] = "-- Select Item --"
 
-    instrument = st.selectbox(
-        "Instrument",
-        instrument_options,
-        key="stock_in_instrument"
-    )
-    
-items = get_items(
-    instrument
-    )
-    
-if not items:
-    st.warning(
-        "No Item available."
+            st.session_state[
+                "stock_in_qty"
+            ] = 1.0
+
+            st.session_state[
+                "stock_in_rate"
+            ] = 0.0
+
+            st.session_state[
+                "stock_in_remarks"
+            ] = ""
+
+        instrument_options = (
+            ["-- Select Instrument --"]
+            + instruments
         )
-else:
-    item_options = ["-- Select Item --"] + items
 
-    item = st.selectbox(
-        "Item",
-        item_options,
-        key="stock_in_item"
-    )
-
-    if item == "-- Select Item --":
-        st.info("Please select an Item.")
-        st.stop()
-
-details = get_item_details(
-    instrument,
-    item
-)
-       
-    item_type = (
-        details["item_type"]
-    )
-
-    current_stock = (
-        get_current_stock(
-            instrument,
-            item
+        instrument = st.selectbox(
+            "Instrument",
+            instrument_options,
+            key="stock_in_instrument"
         )
-    )
 
-    st.write(
-        f"**Type:** {item_type}"
-    )
+        if instrument == "-- Select Instrument --":
 
-    st.metric(
-        "Current Stock",
-        current_stock
-    )
-       
+            st.info(
+                "Please select an Instrument."
+            )
 
-    
-    quantity = st.number_input(
-        "Quantity",
-        min_value=0.01,
-        value=1.0,
-        step=1.0,
-        key="stock_in_qty"
-    )
-    rate = st.number_input(
-        "Rate (₹)",
-        min_value=0.0,
-        value=0.0,
-        step=1.0,
-        key="stock_in_rate"
-    )
+        else:
 
-    total_value = quantity * rate
+            items = get_items(
+                instrument
+            )
 
-    st.write(
-        f"**Total Value: ₹{total_value:,.2f}**"
-    )
-    remarks = st.text_input(
-        "Supplier / PO No. / Remarks",
-        key="stock_in_remarks"
-    )
+            if not items:
 
-    if st.button(
-        "💾 Save Stock IN",
-        type="primary"
-    ):
+                st.warning(
+                    "No Item available."
+                )
 
-                (
-                    supabase
-                    .table("transactions")
-                    .insert({
-                        "txn_date":
-                            datetime.now()
-                            .astimezone()
-                            .isoformat(),
+            else:
 
-                        "instrument_name":
+                item_options = (
+                    ["-- Select Item --"]
+                    + items
+                )
+
+                item = st.selectbox(
+                    "Item",
+                    item_options,
+                    key="stock_in_item"
+                )
+
+                if item == "-- Select Item --":
+
+                    st.info(
+                        "Please select an Item."
+                    )
+
+                else:
+
+                    details = get_item_details(
+                        instrument,
+                        item
+                    )
+
+                    item_type = (
+                        details["item_type"]
+                    )
+
+                    current_stock = (
+                        get_current_stock(
                             instrument,
+                            item
+                        )
+                    )
 
-                        "item_name":
-                            item,
+                    st.write(
+                        f"**Type:** {item_type}"
+                    )
 
-                        "item_type":
-                            item_type,
+                    st.metric(
+                        "Current Stock",
+                        current_stock
+                    )
 
-                        "txn_type":
-                            "IN",
+                    quantity = st.number_input(
+                        "Quantity",
+                        min_value=0.01,
+                        value=1.0,
+                        step=1.0,
+                        key="stock_in_qty"
+                    )
 
-                        "quantity":
-                            quantity,
-                    "rate":
-                        rate,
-                        
-                        "remarks":
-                            remarks.strip(),
+                    rate = st.number_input(
+                        "Rate (₹)",
+                        min_value=0.0,
+                        value=0.0,
+                        step=1.0,
+                        key="stock_in_rate"
+                    )
 
-                        "username":
-                            st.session_state
-                            .username
-                    })
-                    .execute()
-                )
+                    total_value = (
+                        quantity * rate
+                    )
 
-                st.success(
-                    "Stock IN saved."
-                )
+                    st.write(
+                        f"**Total Value: "
+                        f"₹{total_value:,.2f}**"
+                    )
 
-                st.session_state["reset_stock_in"] = True
+                    remarks = st.text_input(
+                        "Supplier / PO No. / Remarks",
+                        key="stock_in_remarks"
+                    )
 
-                st.rerun()
+                    if st.button(
+                        "💾 Save Stock IN",
+                        type="primary"
+                    ):
+
+                        (
+                            supabase
+                            .table("transactions")
+                            .insert({
+                                "txn_date":
+                                    datetime.now()
+                                    .astimezone()
+                                    .isoformat(),
+
+                                "instrument_name":
+                                    instrument,
+
+                                "item_name":
+                                    item,
+
+                                "item_type":
+                                    item_type,
+
+                                "txn_type":
+                                    "IN",
+
+                                "quantity":
+                                    quantity,
+
+                                "rate":
+                                    rate,
+
+                                "remarks":
+                                    remarks.strip(),
+
+                                "username":
+                                    st.session_state
+                                    .username
+                            })
+                            .execute()
+                        )
+
+                        st.success(
+                            "Stock IN saved."
+                        )
+
+                        st.session_state[
+                            "reset_stock_in"
+                        ] = True
+
+                        st.rerun()
 
 
 # =========================================================
