@@ -1412,16 +1412,35 @@ elif menu == "Stock IN":
                 "Current Stock",
                 current_stock
             )
+            if st.session_state.pop("reset_stock_in", False):
+                st.session_state["stock_in_qty"] = 1.0
+                st.session_state["stock_in_rate"] = 0.0
+                st.session_state["stock_in_remarks"] = ""
 
+        
             quantity = st.number_input(
                 "Quantity",
                 min_value=0.01,
                 value=1.0,
-                step=1.0
+                step=1.0,
+                key="stock_in_qty"
+            )
+            rate = st.number_input(
+                "Rate (₹)",
+                min_value=0.0,
+                value=0.0,
+                step=1.0,
+                key="stock_in_rate"
             )
 
+            total_value = quantity * rate
+
+            st.write(
+                f"**Total Value: ₹{total_value:,.2f}**"
+            )
             remarks = st.text_input(
-                "Supplier / PO No. / Remarks"
+                "Supplier / PO No. / Remarks",
+                key="stock_in_remarks"
             )
 
             if st.button(
@@ -1452,7 +1471,9 @@ elif menu == "Stock IN":
 
                         "quantity":
                             quantity,
-
+                    "rate":
+                        rate,
+                        
                         "remarks":
                             remarks.strip(),
 
@@ -1466,6 +1487,8 @@ elif menu == "Stock IN":
                 st.success(
                     "Stock IN saved."
                 )
+
+                st.session_state["reset_stock_in"] = True
 
                 st.rerun()
 
