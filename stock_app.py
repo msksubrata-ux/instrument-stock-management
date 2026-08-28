@@ -3014,6 +3014,47 @@ elif menu == "Stock OUT":
 
     st.header("📤 Stock OUT")
 
+
+    # =====================================================
+    # HELPER: LAST STOCK IN RATE
+    # =====================================================
+
+    def get_last_stock_in_rate(
+        instrument_name,
+        item_name
+    ):
+
+        response = (
+            supabase
+            .table("transactions")
+            .select("rate")
+            .eq("txn_type", "IN")
+            .eq(
+                "instrument_name",
+                instrument_name
+            )
+            .eq(
+                "item_name",
+                item_name
+            )
+            .order("id", desc=True)
+            .limit(1)
+            .execute()
+        )
+
+        if response.data:
+
+            return float(
+                response.data[0].get(
+                    "rate",
+                    0
+                )
+                or 0
+            )
+
+        return 0.0
+
+
     # =====================================================
     # EDIT / DELETE PERMISSION
     # =====================================================
@@ -3021,7 +3062,9 @@ elif menu == "Stock OUT":
     permission_check_out = (
         supabase
         .table("users")
-        .select("can_stock_out_edit_delete")
+        .select(
+            "can_stock_out_edit_delete"
+        )
         .eq(
             "username",
             st.session_state.username
@@ -3031,7 +3074,8 @@ elif menu == "Stock OUT":
     )
 
     can_edit_delete_out = (
-        st.session_state.role == "Admin"
+        st.session_state.role
+        == "Admin"
     )
 
     if (
@@ -3051,7 +3095,10 @@ elif menu == "Stock OUT":
     # TABS
     # =====================================================
 
-    if st.session_state.role == "Admin":
+    if (
+        st.session_state.role
+        == "Admin"
+    ):
 
         (
             tab_entry_out,
@@ -3067,7 +3114,10 @@ elif menu == "Stock OUT":
 
     elif can_edit_delete_out:
 
-        tab_entry_out, tab_edit_out = st.tabs(
+        (
+            tab_entry_out,
+            tab_edit_out
+        ) = st.tabs(
             [
                 "➕ Stock OUT Entry",
                 "✏️ Edit / Delete"
@@ -3089,7 +3139,9 @@ elif menu == "Stock OUT":
 
     with tab_entry_out:
 
-        instruments_out = get_instruments()
+        instruments_out = (
+            get_instruments()
+        )
 
         if not instruments_out:
 
@@ -3100,7 +3152,7 @@ elif menu == "Stock OUT":
         else:
 
             # ---------------------------------------------
-            # RESET
+            # RESET AFTER SAVE
             # ---------------------------------------------
 
             if st.session_state.pop(
@@ -3118,10 +3170,6 @@ elif menu == "Stock OUT":
 
                 st.session_state[
                     "stock_out_qty"
-                ] = ""
-
-                st.session_state[
-                    "stock_out_rate"
                 ] = ""
 
                 st.session_state[
@@ -3219,13 +3267,17 @@ elif menu == "Stock OUT":
                             )
 
 
-                        item_type_out = st.text_input(
-                            "Item Type",
-                            value=master_item_type_out,
-                            key=(
-                                f"stock_out_item_type_"
-                                f"{instrument_out}_"
-                                f"{item_out}"
+                        item_type_out = (
+                            st.text_input(
+                                "Item Type",
+                                value=(
+                                    master_item_type_out
+                                ),
+                                key=(
+                                    f"stock_out_item_type_"
+                                    f"{instrument_out}_"
+                                    f"{item_out}"
+                                )
                             )
                         )
 
@@ -3262,27 +3314,14 @@ elif menu == "Stock OUT":
                         )
 
 
-                        # ---------------------------------
-                        # RATE
-                        # ---------------------------------
-
-                        rate_out_text = (
-                            st.text_input(
-                                "Rate (₹)",
-                                key="stock_out_rate",
-                                placeholder=(
-                                    "Type rate"
-                                )
-                            )
-                        )
-
-
                         quantity_out = 0.0
-                        rate_out = 0.0
                         input_out_ok = True
 
 
-                        if quantity_out_text.strip():
+                        if (
+                            quantity_out_text
+                            .strip()
+                        ):
 
                             try:
 
@@ -3292,7 +3331,10 @@ elif menu == "Stock OUT":
                                     .strip()
                                 )
 
-                                if quantity_out <= 0:
+                                if (
+                                    quantity_out
+                                    <= 0
+                                ):
 
                                     input_out_ok = False
 
@@ -3310,40 +3352,46 @@ elif menu == "Stock OUT":
                                 )
 
 
-                        if rate_out_text.strip():
+                        # ---------------------------------
+                        # LAST STOCK IN RATE
+                        # ---------------------------------
 
-                            try:
+                        rate_out = (
+                            get_last_stock_in_rate(
+                                instrument_out,
+                                item_out
+                            )
+                        )
 
-                                rate_out = float(
-                                    rate_out_text
-                                    .replace(",", "")
-                                    .strip()
-                                )
 
-                                if rate_out < 0:
+                        st.text_input(
+                            "Rate (₹)",
+                            value=(
+                                f"{rate_out:.2f}"
+                            ),
+                            disabled=True,
+                            key=(
+                                f"stock_out_rate_display_"
+                                f"{instrument_out}_"
+                                f"{item_out}"
+                            )
+                        )
 
-                                    input_out_ok = False
 
-                                    st.warning(
-                                        "Rate cannot be negative."
-                                    )
+                        if rate_out <= 0:
 
-                            except ValueError:
-
-                                input_out_ok = False
-
-                                st.warning(
-                                    "Rate must be numeric."
-                                )
+                            st.warning(
+                                "No Stock IN Rate found "
+                                "for this Item."
+                            )
 
 
                         # ---------------------------------
-                        # TOTAL
+                        # TOTAL VALUE
                         # ---------------------------------
 
                         if (
                             quantity_out_text.strip()
-                            and rate_out_text.strip()
                             and input_out_ok
                         ):
 
@@ -3354,7 +3402,8 @@ elif menu == "Stock OUT":
 
                             st.success(
                                 f"Total Value: "
-                                f"₹{total_out_value:,.2f}"
+                                f"₹"
+                                f"{total_out_value:,.2f}"
                             )
 
 
@@ -3362,17 +3411,21 @@ elif menu == "Stock OUT":
                         # REMARKS
                         # ---------------------------------
 
-                        remarks_out = st.text_input(
-                            (
-                                "Issued To / Department "
-                                "/ Remarks"
-                            ),
-                            key="stock_out_remarks"
+                        remarks_out = (
+                            st.text_input(
+                                (
+                                    "Issued To / "
+                                    "Department / Remarks"
+                                ),
+                                key=(
+                                    "stock_out_remarks"
+                                )
+                            )
                         )
 
 
                         # ---------------------------------
-                        # SAVE
+                        # SAVE STOCK OUT
                         # ---------------------------------
 
                         if st.button(
@@ -3380,22 +3433,24 @@ elif menu == "Stock OUT":
                             type="primary"
                         ):
 
-                            if not item_type_out.strip():
+                            if (
+                                not
+                                item_type_out
+                                .strip()
+                            ):
 
                                 st.warning(
                                     "Enter Item Type."
                                 )
 
-                            elif not quantity_out_text.strip():
+                            elif (
+                                not
+                                quantity_out_text
+                                .strip()
+                            ):
 
                                 st.warning(
                                     "Enter Quantity."
-                                )
-
-                            elif not rate_out_text.strip():
-
-                                st.warning(
-                                    "Enter Rate."
                                 )
 
                             elif not input_out_ok:
@@ -3420,17 +3475,21 @@ elif menu == "Stock OUT":
                                     f"{available_stock:g}"
                                 )
 
-                            elif rate_out < 0:
+                            elif rate_out <= 0:
 
-                                st.warning(
-                                    "Rate cannot be negative."
+                                st.error(
+                                    "Stock OUT cannot be saved "
+                                    "because no valid Stock IN "
+                                    "Rate was found."
                                 )
 
                             else:
 
                                 (
                                     supabase
-                                    .table("transactions")
+                                    .table(
+                                        "transactions"
+                                    )
                                     .insert({
 
                                         "txn_date":
@@ -3479,7 +3538,7 @@ elif menu == "Stock OUT":
                                 st.rerun()
 
 
-        # =====================================================
+    # =====================================================
     # STOCK OUT EDIT / DELETE
     # =====================================================
 
@@ -3491,8 +3550,9 @@ elif menu == "Stock OUT":
                 "🔎 Find Stock OUT Transaction"
             )
 
+
             # ---------------------------------------------
-            # LOAD STOCK OUT TRANSACTIONS
+            # LOAD STOCK OUT
             # ---------------------------------------------
 
             response_out = (
@@ -3509,13 +3569,20 @@ elif menu == "Stock OUT":
                     "remarks,"
                     "username"
                 )
-                .eq("txn_type", "OUT")
-                .order("id", desc=True)
+                .eq(
+                    "txn_type",
+                    "OUT"
+                )
+                .order(
+                    "id",
+                    desc=True
+                )
                 .execute()
             )
 
             stock_out_rows = (
-                response_out.data or []
+                response_out.data
+                or []
             )
 
 
@@ -3529,23 +3596,29 @@ elif menu == "Stock OUT":
             else:
 
                 # =========================================
-                # SEARCH / FILTER
+                # FILTERS
                 # =========================================
 
-                out_filter_col1, out_filter_col2 = (
+                f1_out, f2_out = (
                     st.columns(2)
                 )
 
-                with out_filter_col1:
 
-                    search_out = st.text_input(
-                        "🔎 Search",
-                        placeholder=(
-                            "Transaction ID / Instrument / "
-                            "Item / Type / User"
-                        ),
-                        key="stock_out_search"
+                with f1_out:
+
+                    search_out = (
+                        st.text_input(
+                            "🔎 Search",
+                            placeholder=(
+                                "ID / Instrument / "
+                                "Item / Type / User"
+                            ),
+                            key=(
+                                "stock_out_search"
+                            )
+                        )
                     )
+
 
                     instrument_filter_out = (
                         st.selectbox(
@@ -3574,6 +3647,7 @@ elif menu == "Stock OUT":
                         )
                     )
 
+
                     item_filter_out = (
                         st.selectbox(
                             "Filter by Item",
@@ -3601,7 +3675,7 @@ elif menu == "Stock OUT":
                     )
 
 
-                with out_filter_col2:
+                with f2_out:
 
                     type_filter_out = (
                         st.selectbox(
@@ -3628,6 +3702,7 @@ elif menu == "Stock OUT":
                             )
                         )
                     )
+
 
                     user_filter_out = (
                         st.selectbox(
@@ -3656,11 +3731,12 @@ elif menu == "Stock OUT":
                     )
 
 
-                # -----------------------------------------
-                # MIN / MAX DATES
-                # -----------------------------------------
+                # =========================================
+                # DATES
+                # =========================================
 
                 valid_dates_out = []
+
 
                 for row in stock_out_rows:
 
@@ -3710,11 +3786,12 @@ elif menu == "Stock OUT":
                     )
 
 
-                out_date_col1, out_date_col2 = (
+                dc1_out, dc2_out = (
                     st.columns(2)
                 )
 
-                with out_date_col1:
+
+                with dc1_out:
 
                     from_date_out = (
                         st.date_input(
@@ -3726,7 +3803,8 @@ elif menu == "Stock OUT":
                         )
                     )
 
-                with out_date_col2:
+
+                with dc2_out:
 
                     to_date_out = (
                         st.date_input(
@@ -3745,7 +3823,7 @@ elif menu == "Stock OUT":
 
                 filtered_out_rows = []
 
-                search_out_lower = (
+                search_lower_out = (
                     search_out
                     .strip()
                     .lower()
@@ -3765,8 +3843,8 @@ elif menu == "Stock OUT":
 
 
                     if (
-                        search_out_lower
-                        and search_out_lower
+                        search_lower_out
+                        and search_lower_out
                         not in searchable_out
                     ):
 
@@ -3856,10 +3934,6 @@ elif menu == "Stock OUT":
                     )
 
 
-                # =========================================
-                # RESULT COUNT
-                # =========================================
-
                 st.info(
                     f"Found "
                     f"{len(filtered_out_rows)} "
@@ -3874,6 +3948,7 @@ elif menu == "Stock OUT":
                 if filtered_out_rows:
 
                     table_data_out = []
+
 
                     for row in filtered_out_rows:
 
@@ -3905,7 +3980,7 @@ elif menu == "Stock OUT":
                             )[:10]
 
 
-                        qty_out_value = float(
+                        qty_value_out = float(
                             row.get(
                                 "quantity",
                                 0
@@ -3913,7 +3988,7 @@ elif menu == "Stock OUT":
                             or 0
                         )
 
-                        rate_out_value = float(
+                        rate_value_out = float(
                             row.get(
                                 "rate",
                                 0
@@ -3951,14 +4026,14 @@ elif menu == "Stock OUT":
                                 ),
 
                             "Qty":
-                                qty_out_value,
+                                qty_value_out,
 
                             "Rate":
-                                rate_out_value,
+                                rate_value_out,
 
                             "Total":
-                                qty_out_value
-                                * rate_out_value,
+                                qty_value_out
+                                * rate_value_out,
 
                             "User":
                                 row.get(
@@ -4020,6 +4095,7 @@ elif menu == "Stock OUT":
                             f"{float(row['quantity']):g}"
                         )
 
+
                         row_labels_out.append(
                             label_out
                         )
@@ -4031,7 +4107,10 @@ elif menu == "Stock OUT":
 
                     selected_label_out = (
                         st.selectbox(
-                            "Select Transaction to Edit / Delete",
+                            (
+                                "Select Transaction "
+                                "to Edit / Delete"
+                            ),
                             row_labels_out,
                             key=(
                                 "stock_out_edit_"
@@ -4090,14 +4169,6 @@ elif menu == "Stock OUT":
                             or 0
                         )
 
-                        old_out_rate = float(
-                            selected_row_out.get(
-                                "rate",
-                                0
-                            )
-                            or 0
-                        )
-
 
                         st.markdown("---")
 
@@ -4107,9 +4178,9 @@ elif menu == "Stock OUT":
                         )
 
 
-                        # =================================
+                        # ---------------------------------
                         # INSTRUMENT
-                        # =================================
+                        # ---------------------------------
 
                         out_edit_instruments = (
                             get_instruments()
@@ -4147,9 +4218,9 @@ elif menu == "Stock OUT":
                         )
 
 
-                        # =================================
+                        # ---------------------------------
                         # ITEM
-                        # =================================
+                        # ---------------------------------
 
                         out_edit_items = get_items(
                             new_out_instrument
@@ -4192,7 +4263,9 @@ elif menu == "Stock OUT":
                                 st.selectbox(
                                     "Item",
                                     out_edit_items,
-                                    index=out_item_index,
+                                    index=(
+                                        out_item_index
+                                    ),
                                     key=(
                                         f"out_edit_item_"
                                         f"{row_id_out}_"
@@ -4211,9 +4284,9 @@ elif menu == "Stock OUT":
                             )
 
 
-                        # =================================
+                        # ---------------------------------
                         # ITEM TYPE
-                        # =================================
+                        # ---------------------------------
 
                         default_out_type = (
                             old_out_item_type
@@ -4264,9 +4337,9 @@ elif menu == "Stock OUT":
                         )
 
 
-                        # =================================
+                        # ---------------------------------
                         # QUANTITY
-                        # =================================
+                        # ---------------------------------
 
                         edit_out_qty_text = (
                             st.text_input(
@@ -4282,50 +4355,62 @@ elif menu == "Stock OUT":
                         )
 
 
-                        # =================================
-                        # RATE
-                        # =================================
+                        # ---------------------------------
+                        # AUTOMATIC LAST STOCK IN RATE
+                        # ---------------------------------
 
-                        edit_out_rate_text = (
-                            st.text_input(
-                                "Rate (₹)",
-                                value=str(
-                                    old_out_rate
-                                ),
-                                key=(
-                                    f"out_edit_rate_"
-                                    f"{row_id_out}"
+                        new_out_rate = 0.0
+
+
+                        if new_out_item:
+
+                            new_out_rate = (
+                                get_last_stock_in_rate(
+                                    new_out_instrument,
+                                    new_out_item
                                 )
+                            )
+
+
+                        st.text_input(
+                            "Rate (₹)",
+                            value=(
+                                f"{new_out_rate:.2f}"
+                            ),
+                            disabled=True,
+                            key=(
+                                f"out_edit_rate_display_"
+                                f"{row_id_out}_"
+                                f"{new_out_instrument}_"
+                                f"{new_out_item}"
                             )
                         )
 
 
-                        # =================================
-                        # TOTAL VALUE
-                        # =================================
+                        if new_out_rate <= 0:
+
+                            st.warning(
+                                "No valid Stock IN Rate "
+                                "found."
+                            )
+
+
+                        # ---------------------------------
+                        # TOTAL
+                        # ---------------------------------
 
                         try:
 
-                            preview_out_qty = (
-                                float(
-                                    edit_out_qty_text
-                                    .replace(",", "")
-                                    .strip()
-                                )
-                            )
-
-                            preview_out_rate = (
-                                float(
-                                    edit_out_rate_text
-                                    .replace(",", "")
-                                    .strip()
-                                )
+                            preview_out_qty = float(
+                                edit_out_qty_text
+                                .replace(",", "")
+                                .strip()
                             )
 
                             st.success(
                                 f"Total Value: "
                                 f"₹"
-                                f"{preview_out_qty * preview_out_rate:,.2f}"
+                                f"{preview_out_qty * new_out_rate:,.2f}"
                             )
 
                         except ValueError:
@@ -4333,16 +4418,15 @@ elif menu == "Stock OUT":
                             pass
 
 
-                        # =================================
+                        # ---------------------------------
                         # REMARKS
-                        # =================================
+                        # ---------------------------------
 
                         edit_out_remarks = (
                             st.text_input(
                                 (
                                     "Issued To / "
-                                    "Department / "
-                                    "Remarks"
+                                    "Department / Remarks"
                                 ),
                                 value=(
                                     selected_row_out.get(
@@ -4395,6 +4479,13 @@ elif menu == "Stock OUT":
                                         "Enter Item Type."
                                     )
 
+                                elif new_out_rate <= 0:
+
+                                    st.error(
+                                        "No valid Stock IN "
+                                        "Rate found."
+                                    )
+
                                 else:
 
                                     try:
@@ -4408,26 +4499,19 @@ elif menu == "Stock OUT":
                                             .strip()
                                         )
 
-                                        new_out_rate = float(
-                                            edit_out_rate_text
-                                            .replace(
-                                                ",",
-                                                ""
-                                            )
-                                            .strip()
-                                        )
-
                                     except ValueError:
 
                                         st.error(
-                                            "Quantity and "
-                                            "Rate must "
+                                            "Quantity must "
                                             "be numeric."
                                         )
 
                                     else:
 
-                                        if new_out_qty <= 0:
+                                        if (
+                                            new_out_qty
+                                            <= 0
+                                        ):
 
                                             st.error(
                                                 "Quantity must "
@@ -4435,18 +4519,11 @@ elif menu == "Stock OUT":
                                                 "than 0."
                                             )
 
-                                        elif new_out_rate < 0:
-
-                                            st.error(
-                                                "Rate cannot "
-                                                "be negative."
-                                            )
-
                                         else:
 
-                                            # SAME ITEM:
-                                            # old OUT quantity
-                                            # becomes available
+                                            # -------------------------
+                                            # STOCK AVAILABILITY
+                                            # -------------------------
 
                                             if (
                                                 new_out_instrument
@@ -4546,6 +4623,7 @@ elif menu == "Stock OUT":
                                 )
                             )
 
+
                             if st.button(
                                 "🗑 Delete Stock OUT",
                                 key=(
@@ -4560,8 +4638,7 @@ elif menu == "Stock OUT":
                                 ):
 
                                     st.warning(
-                                        "Tick "
-                                        "Confirm Delete."
+                                        "Tick Confirm Delete."
                                     )
 
                                 else:
@@ -4580,8 +4657,7 @@ elif menu == "Stock OUT":
                                     )
 
                                     st.success(
-                                        "Stock OUT "
-                                        "deleted."
+                                        "Stock OUT deleted."
                                     )
 
                                     st.rerun()
@@ -4592,6 +4668,8 @@ elif menu == "Stock OUT":
                         "No transaction found "
                         "for selected filters."
                     )
+
+
     # =====================================================
     # STOCK OUT PERMISSION
     # =====================================================
@@ -4601,8 +4679,10 @@ elif menu == "Stock OUT":
         with tab_permission_out:
 
             st.subheader(
-                "🔐 Stock OUT Edit/Delete Permission"
+                "🔐 Stock OUT "
+                "Edit/Delete Permission"
             )
+
 
             users_response_out = (
                 supabase
@@ -4616,12 +4696,18 @@ elif menu == "Stock OUT":
                 .execute()
             )
 
+
             normal_users_out = [
+
                 row
+
                 for row
                 in users_response_out.data
-                if row["username"]
-                != st.session_state.username
+
+                if (
+                    row["username"]
+                    != st.session_state.username
+                )
             ]
 
 
@@ -4634,30 +4720,47 @@ elif menu == "Stock OUT":
             else:
 
                 permission_usernames_out = [
+
                     row["username"]
-                    for row in normal_users_out
+
+                    for row
+                    in normal_users_out
                 ]
+
 
                 selected_permission_user_out = (
                     st.selectbox(
                         "Select User",
                         permission_usernames_out,
                         key=(
-                            "stock_out_permission_user"
+                            "stock_out_"
+                            "permission_user"
                         )
                     )
                 )
 
+
                 permission_row_out = next(
+
                     row
-                    for row in normal_users_out
-                    if row["username"]
-                    == selected_permission_user_out
+
+                    for row
+                    in normal_users_out
+
+                    if (
+                        row["username"]
+                        ==
+                        selected_permission_user_out
+                    )
                 )
+
 
                 allow_out_edit_delete = (
                     st.checkbox(
-                        "Allow Stock OUT Edit/Delete",
+                        (
+                            "Allow Stock OUT "
+                            "Edit/Delete"
+                        ),
                         value=bool(
                             permission_row_out.get(
                                 "can_stock_out_edit_delete",
@@ -4665,10 +4768,12 @@ elif menu == "Stock OUT":
                             )
                         ),
                         key=(
-                            "allow_stock_out_edit_delete"
+                            "allow_stock_out_"
+                            "edit_delete"
                         )
                     )
                 )
+
 
                 if st.button(
                     "💾 Save Stock OUT Permission"
@@ -4678,6 +4783,7 @@ elif menu == "Stock OUT":
                         supabase
                         .table("users")
                         .update({
+
                             "can_stock_out_edit_delete":
                                 int(
                                     allow_out_edit_delete
@@ -4689,6 +4795,7 @@ elif menu == "Stock OUT":
                         )
                         .execute()
                     )
+
 
                     st.success(
                         "Stock OUT permission updated."
