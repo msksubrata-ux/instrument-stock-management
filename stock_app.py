@@ -2199,130 +2199,865 @@ elif menu == "Stock IN":
 
 elif menu == "Stock OUT":
 
-    st.header(
-        "📤 Stock OUT"
+    st.header("📤 Stock OUT")
+
+    # =====================================================
+    # CHECK EDIT / DELETE PERMISSION
+    # =====================================================
+
+    permission_check = (
+        supabase
+        .table("users")
+        .select("can_stock_out_edit_delete")
+        .eq(
+            "username",
+            st.session_state.username
+        )
+        .limit(1)
+        .execute()
     )
 
-    instruments = get_instruments()
+    # Admin always allowed
+    can_edit_delete_out = (
+        st.session_state.role == "Admin"
+    )
 
-    if not instruments:
-
-        st.warning(
-            "No Instrument available."
+    # Normal user needs permission
+    if (
+        not can_edit_delete_out
+        and permission_check.data
+    ):
+        can_edit_delete_out = bool(
+            permission_check.data[0].get(
+                "can_stock_out_edit_delete",
+                0
+            )
         )
+
+
+    # =====================================================
+    # TABS
+    # =====================================================
+
+    if st.session_state.role == "Admin":
+
+        tab_entry_out, tab_edit_out, tab_permission_out = (
+            st.tabs(
+                [
+                    "➕ Stock OUT Entry",
+                    "✏️ Edit / Delete",
+                    "🔐 Edit/Delete Permission"
+                ]
+            )
+        )
+
+    elif can_edit_delete_out:
+
+        tab_entry_out, tab_edit_out = st.tabs(
+            [
+                "➕ Stock OUT Entry",
+                "✏️ Edit / Delete"
+            ]
+        )
+
+        tab_permission_out = None
 
     else:
 
-        instrument = st.selectbox(
-            "Instrument",
-            instruments
-        )
+        tab_entry_out = st.container()
 
-        items = get_items(
-            instrument
-        )
+        tab_edit_out = None
+        tab_permission_out = None
 
-        if not items:
+
+    # =====================================================
+    # STOCK OUT ENTRY
+    # =====================================================
+
+    with tab_entry_out:
+
+        instruments = get_instruments()
+
+        if not instruments:
 
             st.warning(
-                "No Item available."
+                "No Instrument available."
             )
 
         else:
 
-            item = st.selectbox(
-                "Item",
-                items
-            )
+            # ---------------------------------------------
+            # RESET AFTER SAVE
+            # ---------------------------------------------
 
-            details = get_item_details(
-                instrument,
-                item
-            )
-
-            item_type = (
-                details["item_type"]
-            )
-
-            available = get_current_stock(
-                instrument,
-                item
-            )
-
-            st.write(
-                f"**Type:** {item_type}"
-            )
-
-            st.metric(
-                "Available Stock",
-                available
-            )
-
-            quantity = st.number_input(
-                "Quantity",
-                min_value=0.01,
-                value=1.0,
-                step=1.0
-            )
-
-            remarks = st.text_input(
-                "Issued To / Department / Remarks"
-            )
-
-            if st.button(
-                "💾 Save Stock OUT",
-                type="primary"
+            if st.session_state.pop(
+                "reset_stock_out",
+                False
             ):
 
-                if quantity > available:
+                st.session_state[
+                    "stock_out_instrument"
+                ] = "-- Select Instrument --"
 
-                    st.error(
-                        f"Insufficient Stock. "
-                        f"Available: {available}"
+                st.session_state[
+                    "stock_out_item"
+                ] = "-- Select Item --"
+
+                st.session_state[
+                    "stock_out_qty_text"
+                ] = ""
+
+                st.session_state[
+                    "stock_out_remarks"
+                ] = ""
+
+
+            # ---------------------------------------------
+            # INSTRUMENT
+            # ---------------------------------------------
+
+            instrument_options_out = (
+                ["-- Select Instrument --"]
+                + instruments
+            )
+
+            instrument_out = st.selectbox(
+                "Instrument",
+                instrument_options_out,
+                key="stock_out_instrument"
+            )
+
+
+            if (
+                instrument_out
+                == "-- Select Instrument --"
+            ):
+
+                st.info(
+                    "Please select an Instrument."
+                )
+
+            else:
+
+                # -----------------------------------------
+                # ITEM
+                # -----------------------------------------
+
+                items_out = get_items(
+                    instrument_out
+                )
+
+                if not items_out:
+
+                    st.warning(
+                        "No Item available."
                     )
 
                 else:
 
+                    item_options_out = (
+                        ["-- Select Item --"]
+                        + items_out
+                    )
+
+                    item_out = st.selectbox(
+                        "Item",
+                        item_options_out,
+                        key="stock_out_item"
+                    )
+
+
+                    if (
+                        item_out
+                        == "-- Select Item --"
+                    ):
+
+                        st.info(
+                            "Please select an Item."
+                        )
+
+                    else:
+
+                        # ---------------------------------
+                        # ITEM DETAILS
+                        # ---------------------------------
+
+                        details_out = (
+                            get_item_details(
+                                instrument_out,
+                                item_out
+                            )
+                        )
+
+                        item_type_out = (
+                            details_out["item_type"]
+                        )
+
+                        available_out = (
+                            get_current_stock(
+                                instrument_out,
+                                item_out
+                            )
+                        )
+
+
+                        st.write(
+                            f"**Type:** "
+                            f"{item_type_out}"
+                        )
+
+                        st.metric(
+                            "Available Stock",
+                            available_out
+                        )
+
+
+                        # ---------------------------------
+                        # QUANTITY
+                        # ---------------------------------
+
+                        quantity_out_text = (
+                            st.text_input(
+                                "Quantity",
+                                key=(
+                                    "stock_out_"
+                                    "qty_text"
+                                ),
+                                placeholder=(
+                                    "Type quantity"
+                                )
+                            )
+                        )
+
+
+                        quantity_out = 0.0
+                        quantity_out_ok = True
+
+
+                        if (
+                            quantity_out_text
+                            .strip()
+                        ):
+
+                            try:
+
+                                quantity_out = float(
+                                    quantity_out_text
+                                    .replace(",", "")
+                                    .strip()
+                                )
+
+                                if quantity_out <= 0:
+
+                                    quantity_out_ok = False
+
+                                    st.warning(
+                                        "Quantity must be "
+                                        "greater than 0."
+                                    )
+
+                            except ValueError:
+
+                                quantity_out_ok = False
+
+                                st.warning(
+                                    "Quantity must "
+                                    "be a number."
+                                )
+
+
+                        # ---------------------------------
+                        # REMARKS
+                        # ---------------------------------
+
+                        remarks_out = st.text_input(
+                            (
+                                "Issued To / Department "
+                                "/ Remarks"
+                            ),
+                            key="stock_out_remarks"
+                        )
+
+
+                        # ---------------------------------
+                        # SAVE STOCK OUT
+                        # ---------------------------------
+
+                        if st.button(
+                            "💾 Save Stock OUT",
+                            type="primary"
+                        ):
+
+                            if (
+                                not quantity_out_text
+                                .strip()
+                            ):
+
+                                st.warning(
+                                    "Enter Quantity."
+                                )
+
+                            elif not quantity_out_ok:
+
+                                pass
+
+                            elif quantity_out <= 0:
+
+                                st.warning(
+                                    "Quantity must be "
+                                    "greater than 0."
+                                )
+
+                            elif (
+                                quantity_out
+                                > available_out
+                            ):
+
+                                st.error(
+                                    f"Insufficient Stock. "
+                                    f"Available Stock: "
+                                    f"{available_out}"
+                                )
+
+                            else:
+
+                                (
+                                    supabase
+                                    .table(
+                                        "transactions"
+                                    )
+                                    .insert({
+
+                                        "txn_date":
+                                            datetime.now()
+                                            .astimezone()
+                                            .isoformat(),
+
+                                        "instrument_name":
+                                            instrument_out,
+
+                                        "item_name":
+                                            item_out,
+
+                                        "item_type":
+                                            item_type_out,
+
+                                        "txn_type":
+                                            "OUT",
+
+                                        "quantity":
+                                            quantity_out,
+
+                                        "remarks":
+                                            remarks_out
+                                            .strip(),
+
+                                        "username":
+                                            st.session_state
+                                            .username
+                                    })
+                                    .execute()
+                                )
+
+                                st.success(
+                                    "Stock OUT saved."
+                                )
+
+                                st.session_state[
+                                    "reset_stock_out"
+                                ] = True
+
+                                st.rerun()
+
+
+    # =====================================================
+    # STOCK OUT EDIT / DELETE
+    # =====================================================
+
+    if tab_edit_out is not None:
+
+        with tab_edit_out:
+
+            if not can_edit_delete_out:
+
+                st.error(
+                    "You do not have "
+                    "Edit/Delete permission."
+                )
+
+            else:
+
+                # -----------------------------------------
+                # LOAD STOCK OUT TRANSACTIONS
+                # -----------------------------------------
+
+                response_out = (
+                    supabase
+                    .table("transactions")
+                    .select(
+                        "id,"
+                        "txn_date,"
+                        "instrument_name,"
+                        "item_name,"
+                        "item_type,"
+                        "quantity,"
+                        "remarks,"
+                        "username"
+                    )
+                    .eq(
+                        "txn_type",
+                        "OUT"
+                    )
+                    .order(
+                        "id",
+                        desc=True
+                    )
+                    .execute()
+                )
+
+
+                stock_out_rows = (
+                    response_out.data
+                )
+
+
+                if not stock_out_rows:
+
+                    st.info(
+                        "No Stock OUT "
+                        "transactions available."
+                    )
+
+                else:
+
+                    row_map_out = {}
+
+                    row_labels_out = []
+
+
+                    for row in stock_out_rows:
+
+                        label_out = (
+                            f"ID {row['id']} | "
+                            f"{row['instrument_name']} | "
+                            f"{row['item_name']} | "
+                            f"Qty {row['quantity']} | "
+                            f"{row.get('username', '')}"
+                        )
+
+                        row_labels_out.append(
+                            label_out
+                        )
+
+                        row_map_out[
+                            label_out
+                        ] = row
+
+
+                    # -------------------------------------
+                    # SELECT TRANSACTION
+                    # -------------------------------------
+
+                    selected_label_out = (
+                        st.selectbox(
+                            "Select Stock OUT Entry",
+                            row_labels_out,
+                            key=(
+                                "edit_stock_out_"
+                                "transaction"
+                            )
+                        )
+                    )
+
+
+                    selected_row_out = (
+                        row_map_out[
+                            selected_label_out
+                        ]
+                    )
+
+
+                    # -------------------------------------
+                    # SHOW DETAILS
+                    # -------------------------------------
+
+                    st.write(
+                        f"**Instrument:** "
+                        f"{selected_row_out['instrument_name']}"
+                    )
+
+                    st.write(
+                        f"**Item:** "
+                        f"{selected_row_out['item_name']}"
+                    )
+
+                    st.write(
+                        f"**Type:** "
+                        f"{selected_row_out['item_type']}"
+                    )
+
+                    st.write(
+                        f"**Entered By:** "
+                        f"{selected_row_out.get('username', '')}"
+                    )
+
+
+                    # -------------------------------------
+                    # CURRENT AVAILABLE STOCK
+                    # -------------------------------------
+
+                    current_available_out = (
+                        get_current_stock(
+                            selected_row_out[
+                                "instrument_name"
+                            ],
+                            selected_row_out[
+                                "item_name"
+                            ]
+                        )
+                    )
+
+
+                    st.metric(
+                        "Current Available Stock",
+                        current_available_out
+                    )
+
+
+                    # -------------------------------------
+                    # EDIT QUANTITY
+                    # -------------------------------------
+
+                    edit_out_qty_text = (
+                        st.text_input(
+                            "Quantity",
+                            value=str(
+                                selected_row_out[
+                                    "quantity"
+                                ]
+                            ),
+                            key=(
+                                "edit_stock_out_qty"
+                            )
+                        )
+                    )
+
+
+                    # -------------------------------------
+                    # EDIT REMARKS
+                    # -------------------------------------
+
+                    edit_out_remarks = (
+                        st.text_input(
+                            (
+                                "Issued To / Department "
+                                "/ Remarks"
+                            ),
+                            value=(
+                                selected_row_out.get(
+                                    "remarks",
+                                    ""
+                                )
+                                or ""
+                            ),
+                            key=(
+                                "edit_stock_out_"
+                                "remarks"
+                            )
+                        )
+                    )
+
+
+                    c1_out, c2_out = (
+                        st.columns(2)
+                    )
+
+
+                    # =====================================
+                    # UPDATE STOCK OUT
+                    # =====================================
+
+                    with c1_out:
+
+                        if st.button(
+                            "💾 Update Stock OUT",
+                            type="primary"
+                        ):
+
+                            try:
+
+                                new_out_qty = float(
+                                    edit_out_qty_text
+                                    .replace(",", "")
+                                    .strip()
+                                )
+
+                            except ValueError:
+
+                                st.error(
+                                    "Quantity must "
+                                    "be numeric."
+                                )
+
+                            else:
+
+                                if new_out_qty <= 0:
+
+                                    st.error(
+                                        "Quantity must "
+                                        "be greater than 0."
+                                    )
+
+                                else:
+
+                                    old_out_qty = float(
+                                        selected_row_out[
+                                            "quantity"
+                                        ]
+                                        or 0
+                                    )
+
+
+                                    # Current stock already
+                                    # includes old OUT.
+                                    # Add old OUT back to find
+                                    # maximum quantity allowed.
+
+                                    max_out_allowed = (
+                                        current_available_out
+                                        + old_out_qty
+                                    )
+
+
+                                    if (
+                                        new_out_qty
+                                        > max_out_allowed
+                                    ):
+
+                                        st.error(
+                                            "Insufficient Stock. "
+                                            f"Maximum allowed: "
+                                            f"{max_out_allowed}"
+                                        )
+
+                                    else:
+
+                                        (
+                                            supabase
+                                            .table(
+                                                "transactions"
+                                            )
+                                            .update({
+
+                                                "quantity":
+                                                    new_out_qty,
+
+                                                "remarks":
+                                                    edit_out_remarks
+                                                    .strip()
+                                            })
+                                            .eq(
+                                                "id",
+                                                selected_row_out[
+                                                    "id"
+                                                ]
+                                            )
+                                            .execute()
+                                        )
+
+
+                                        st.success(
+                                            "Stock OUT "
+                                            "updated."
+                                        )
+
+                                        st.rerun()
+
+
+                    # =====================================
+                    # DELETE STOCK OUT
+                    # =====================================
+
+                    with c2_out:
+
+                        confirm_delete_out = (
+                            st.checkbox(
+                                "Confirm Delete",
+                                key=(
+                                    "stock_out_"
+                                    "delete_confirm"
+                                )
+                            )
+                        )
+
+
+                        if st.button(
+                            "🗑 Delete Stock OUT"
+                        ):
+
+                            if not confirm_delete_out:
+
+                                st.warning(
+                                    "Tick Confirm Delete."
+                                )
+
+                            else:
+
+                                (
+                                    supabase
+                                    .table(
+                                        "transactions"
+                                    )
+                                    .delete()
+                                    .eq(
+                                        "id",
+                                        selected_row_out[
+                                            "id"
+                                        ]
+                                    )
+                                    .execute()
+                                )
+
+
+                                st.success(
+                                    "Stock OUT deleted."
+                                )
+
+                                st.rerun()
+
+
+    # =====================================================
+    # ADMIN - STOCK OUT EDIT/DELETE PERMISSION
+    # =====================================================
+
+    if tab_permission_out is not None:
+
+        with tab_permission_out:
+
+            st.subheader(
+                "🔐 Stock OUT "
+                "Edit/Delete Permission"
+            )
+
+
+            users_response_out = (
+                supabase
+                .table("users")
+                .select(
+                    "username,"
+                    "role,"
+                    "can_stock_out_edit_delete"
+                )
+                .order(
+                    "username"
+                )
+                .execute()
+            )
+
+
+            normal_users_out = [
+
+                row
+
+                for row
+                in users_response_out.data
+
+                if row["username"]
+                != st.session_state.username
+            ]
+
+
+            if not normal_users_out:
+
+                st.info(
+                    "No other Users available."
+                )
+
+            else:
+
+                permission_usernames_out = [
+
+                    row["username"]
+
+                    for row
+                    in normal_users_out
+                ]
+
+
+                selected_permission_user_out = (
+                    st.selectbox(
+                        "Select User",
+                        permission_usernames_out,
+                        key=(
+                            "stock_out_"
+                            "permission_user"
+                        )
+                    )
+                )
+
+
+                permission_row_out = next(
+
+                    row
+
+                    for row
+                    in normal_users_out
+
+                    if (
+                        row["username"]
+                        ==
+                        selected_permission_user_out
+                    )
+                )
+
+
+                allow_out_edit_delete = (
+                    st.checkbox(
+                        (
+                            "Allow Stock OUT "
+                            "Edit/Delete"
+                        ),
+                        value=bool(
+                            permission_row_out.get(
+                                "can_stock_out_edit_delete",
+                                0
+                            )
+                        ),
+                        key=(
+                            "allow_stock_out_"
+                            "edit_delete"
+                        )
+                    )
+                )
+
+
+                if st.button(
+                    "💾 Save Stock OUT Permission"
+                ):
+
                     (
                         supabase
-                        .table("transactions")
-                        .insert({
-                            "txn_date":
-                                datetime.now()
-                                .astimezone()
-                                .isoformat(),
+                        .table("users")
+                        .update({
 
-                            "instrument_name":
-                                instrument,
-
-                            "item_name":
-                                item,
-
-                            "item_type":
-                                item_type,
-
-                            "txn_type":
-                                "OUT",
-
-                            "quantity":
-                                quantity,
-
-                            "remarks":
-                                remarks.strip(),
-
-                            "username":
-                                st.session_state
-                                .username
+                            "can_stock_out_edit_delete":
+                                int(
+                                    allow_out_edit_delete
+                                )
                         })
+                        .eq(
+                            "username",
+                            selected_permission_user_out
+                        )
                         .execute()
                     )
 
+
                     st.success(
-                        "Stock OUT saved."
+                        "Stock OUT permission updated."
                     )
 
                     st.rerun()
-
 
 # =========================================================
 # CURRENT STOCK
