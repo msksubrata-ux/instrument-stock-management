@@ -1354,8 +1354,10 @@ elif menu == "Stock IN":
 
     st.header("📥 Stock IN")
 
-    # Admin always has Edit/Delete permission.
-    # Normal user needs can_stock_in_edit_delete = 1.
+    # =====================================================
+    # EDIT / DELETE PERMISSION
+    # =====================================================
+
     permission_check = (
         supabase
         .table("users")
@@ -1383,7 +1385,13 @@ elif menu == "Stock IN":
             )
         )
 
+
+    # =====================================================
+    # TABS
+    # =====================================================
+
     if st.session_state.role == "Admin":
+
         tab_entry, tab_edit, tab_permission = st.tabs(
             [
                 "➕ Stock IN Entry",
@@ -1393,15 +1401,18 @@ elif menu == "Stock IN":
         )
 
     elif can_edit_delete:
+
         tab_entry, tab_edit = st.tabs(
             [
                 "➕ Stock IN Entry",
                 "✏️ Edit / Delete"
             ]
         )
+
         tab_permission = None
 
     else:
+
         tab_entry = st.container()
         tab_edit = None
         tab_permission = None
@@ -1423,10 +1434,15 @@ elif menu == "Stock IN":
 
         else:
 
+            # ---------------------------------------------
+            # RESET AFTER SAVE
+            # ---------------------------------------------
+
             if st.session_state.pop(
                 "reset_stock_in",
                 False
             ):
+
                 st.session_state[
                     "stock_in_instrument"
                 ] = "-- Select Instrument --"
@@ -1436,16 +1452,21 @@ elif menu == "Stock IN":
                 ] = "-- Select Item --"
 
                 st.session_state[
-                    "stock_in_qty_text"
+                    "stock_in_qty"
                 ] = ""
 
                 st.session_state[
-                    "stock_in_amount_text"
+                    "stock_in_rate"
                 ] = ""
 
                 st.session_state[
                     "stock_in_remarks"
                 ] = ""
+
+
+            # ---------------------------------------------
+            # INSTRUMENT
+            # ---------------------------------------------
 
             instrument_options = (
                 ["-- Select Instrument --"]
@@ -1458,6 +1479,7 @@ elif menu == "Stock IN":
                 key="stock_in_instrument"
             )
 
+
             if (
                 instrument
                 == "-- Select Instrument --"
@@ -1468,6 +1490,10 @@ elif menu == "Stock IN":
                 )
 
             else:
+
+                # -----------------------------------------
+                # ITEM
+                # -----------------------------------------
 
                 items = get_items(
                     instrument
@@ -1492,6 +1518,7 @@ elif menu == "Stock IN":
                         key="stock_in_item"
                     )
 
+
                     if (
                         item
                         == "-- Select Item --"
@@ -1503,6 +1530,10 @@ elif menu == "Stock IN":
 
                     else:
 
+                        # ---------------------------------
+                        # MASTER ITEM TYPE
+                        # ---------------------------------
+
                         details = (
                             get_item_details(
                                 instrument,
@@ -1510,9 +1541,33 @@ elif menu == "Stock IN":
                             )
                         )
 
-                        item_type = (
-                            details["item_type"]
+                        master_item_type = ""
+
+                        if details:
+
+                            master_item_type = (
+                                details.get(
+                                    "item_type",
+                                    ""
+                                )
+                                or ""
+                            )
+
+
+                        # Item Type can also be typed
+                        item_type = st.text_input(
+                            "Item Type",
+                            value=master_item_type,
+                            key=(
+                                f"stock_in_item_type_"
+                                f"{instrument}_{item}"
+                            )
                         )
+
+
+                        # ---------------------------------
+                        # CURRENT STOCK
+                        # ---------------------------------
 
                         current_stock = (
                             get_current_stock(
@@ -1521,50 +1576,55 @@ elif menu == "Stock IN":
                             )
                         )
 
-                        st.write(
-                            f"**Type:** "
-                            f"{item_type}"
-                        )
-
                         st.metric(
                             "Current Stock",
                             current_stock
                         )
 
+
+                        # ---------------------------------
+                        # QUANTITY
+                        # ---------------------------------
+
                         quantity_text = (
                             st.text_input(
                                 "Quantity",
-                                key=(
-                                    "stock_in_"
-                                    "qty_text"
-                                ),
+                                key="stock_in_qty",
                                 placeholder=(
                                     "Type quantity"
                                 )
                             )
                         )
 
-                        amount_text = (
+
+                        # ---------------------------------
+                        # RATE
+                        # ---------------------------------
+
+                        rate_text = (
                             st.text_input(
-                                "Amount (₹)",
-                                key=(
-                                    "stock_in_"
-                                    "amount_text"
-                                ),
+                                "Rate (₹)",
+                                key="stock_in_rate",
                                 placeholder=(
-                                    "Type total amount"
+                                    "Type rate"
                                 )
                             )
                         )
 
+
                         quantity = 0.0
-                        amount = 0.0
                         rate = 0.0
                         input_ok = True
+
+
+                        # ---------------------------------
+                        # QUANTITY VALIDATION
+                        # ---------------------------------
 
                         if quantity_text.strip():
 
                             try:
+
                                 quantity = float(
                                     quantity_text
                                     .replace(",", "")
@@ -1572,10 +1632,12 @@ elif menu == "Stock IN":
                                 )
 
                                 if quantity <= 0:
+
                                     input_ok = False
+
                                     st.warning(
-                                        "Quantity must "
-                                        "be greater than 0."
+                                        "Quantity must be "
+                                        "greater than 0."
                                     )
 
                             except ValueError:
@@ -1583,25 +1645,30 @@ elif menu == "Stock IN":
                                 input_ok = False
 
                                 st.warning(
-                                    "Quantity must "
-                                    "be a number."
+                                    "Quantity must be numeric."
                                 )
 
-                        if amount_text.strip():
+
+                        # ---------------------------------
+                        # RATE VALIDATION
+                        # ---------------------------------
+
+                        if rate_text.strip():
 
                             try:
-                                amount = float(
-                                    amount_text
+
+                                rate = float(
+                                    rate_text
                                     .replace(",", "")
                                     .strip()
                                 )
 
-                                if amount < 0:
+                                if rate < 0:
+
                                     input_ok = False
 
                                     st.warning(
-                                        "Amount cannot "
-                                        "be negative."
+                                        "Rate cannot be negative."
                                     )
 
                             except ValueError:
@@ -1609,66 +1676,91 @@ elif menu == "Stock IN":
                                 input_ok = False
 
                                 st.warning(
-                                    "Amount must "
-                                    "be a number."
+                                    "Rate must be numeric."
                                 )
 
+
+                        # ---------------------------------
+                        # TOTAL VALUE
+                        # ---------------------------------
+
                         if (
-                            quantity > 0
-                            and amount >= 0
+                            quantity_text.strip()
+                            and rate_text.strip()
+                            and input_ok
                         ):
 
-                            rate = (
-                                amount / quantity
+                            total_value = (
+                                quantity * rate
                             )
 
-                            st.write(
-                                f"**Rate: "
-                                f"₹{rate:,.2f} "
-                                f"per unit**"
+                            st.success(
+                                f"Total Value: "
+                                f"₹{total_value:,.2f}"
                             )
+
+
+                        # ---------------------------------
+                        # REMARKS
+                        # ---------------------------------
 
                         remarks = st.text_input(
                             "Supplier / PO No. / Remarks",
                             key="stock_in_remarks"
                         )
 
+
+                        # ---------------------------------
+                        # SAVE
+                        # ---------------------------------
+
                         if st.button(
                             "💾 Save Stock IN",
                             type="primary"
                         ):
 
-                            if (
-                                not quantity_text.strip()
-                            ):
+                            if not item_type.strip():
+
+                                st.warning(
+                                    "Enter Item Type."
+                                )
+
+                            elif not quantity_text.strip():
+
                                 st.warning(
                                     "Enter Quantity."
                                 )
 
-                            elif (
-                                not amount_text.strip()
-                            ):
+                            elif not rate_text.strip():
+
                                 st.warning(
-                                    "Enter Amount."
+                                    "Enter Rate."
                                 )
 
                             elif not input_ok:
+
                                 pass
 
                             elif quantity <= 0:
+
                                 st.warning(
                                     "Quantity must be "
                                     "greater than 0."
+                                )
+
+                            elif rate < 0:
+
+                                st.warning(
+                                    "Rate cannot be negative."
                                 )
 
                             else:
 
                                 (
                                     supabase
-                                    .table(
-                                        "transactions"
-                                    )
+                                    .table("transactions")
                                     .insert({
+
                                         "txn_date":
                                             datetime.now()
                                             .astimezone()
@@ -1681,16 +1773,13 @@ elif menu == "Stock IN":
                                             item,
 
                                         "item_type":
-                                            item_type,
+                                            item_type.strip(),
 
                                         "txn_type":
                                             "IN",
 
                                         "quantity":
                                             quantity,
-
-                                        "amount":
-                                            amount,
 
                                         "rate":
                                             rate,
@@ -1716,7 +1805,7 @@ elif menu == "Stock IN":
                                 st.rerun()
 
 
-       # =====================================================
+    # =====================================================
     # STOCK IN EDIT / DELETE
     # =====================================================
 
@@ -1724,502 +1813,584 @@ elif menu == "Stock IN":
 
         with tab_edit:
 
-            if not can_edit_delete:
+            response = (
+                supabase
+                .table("transactions")
+                .select(
+                    "id,"
+                    "txn_date,"
+                    "instrument_name,"
+                    "item_name,"
+                    "item_type,"
+                    "quantity,"
+                    "rate,"
+                    "remarks,"
+                    "username"
+                )
+                .eq(
+                    "txn_type",
+                    "IN"
+                )
+                .order(
+                    "id",
+                    desc=True
+                )
+                .execute()
+            )
 
-                st.error(
-                    "You do not have Edit/Delete permission."
+            stock_in_rows = response.data
+
+
+            if not stock_in_rows:
+
+                st.info(
+                    "No Stock IN transactions available."
                 )
 
             else:
 
-                response = (
-                    supabase
-                    .table("transactions")
-                    .select(
-                        "id,"
-                        "txn_date,"
-                        "instrument_name,"
-                        "item_name,"
-                        "item_type,"
-                        "quantity,"
-                        "amount,"
-                        "rate,"
-                        "remarks,"
-                        "username"
+                row_map = {}
+                row_labels = []
+
+
+                for row in stock_in_rows:
+
+                    label = (
+                        f"ID {row['id']} | "
+                        f"{row['instrument_name']} | "
+                        f"{row['item_name']} | "
+                        f"Qty {float(row['quantity']):g}"
                     )
-                    .eq("txn_type", "IN")
-                    .order("id", desc=True)
-                    .execute()
+
+                    row_labels.append(
+                        label
+                    )
+
+                    row_map[
+                        label
+                    ] = row
+
+
+                selected_label = st.selectbox(
+                    "Select Stock IN Entry",
+                    row_labels,
+                    key="stock_in_edit_row"
                 )
 
-                stock_in_rows = response.data
-
-                if not stock_in_rows:
-
-                    st.info(
-                        "No Stock IN transactions available."
-                    )
-
-                else:
-
-                    row_map = {}
-                    row_labels = []
-
-                    for row in stock_in_rows:
-
-                        label = (
-                            f"{row['instrument_name']} | "
-                            f"{row['item_name']} | "
-                            f"Qty: {float(row['quantity']):g} | "
-                            f"ID: {row['id']}"
-                        )
-
-                        row_labels.append(label)
-                        row_map[label] = row
-
-
-                    selected_label = st.selectbox(
-                        "Select Stock IN Entry",
-                        row_labels,
-                        key="edit_stock_in_transaction"
-                    )
-
-                    selected_row = row_map[
+                selected_row = (
+                    row_map[
                         selected_label
                     ]
+                )
 
+                row_id = selected_row["id"]
 
-                    # =====================================
-                    # ORIGINAL DETAILS
-                    # =====================================
+                old_instrument = (
+                    selected_row[
+                        "instrument_name"
+                    ]
+                )
 
-                    old_instrument = (
-                        selected_row["instrument_name"]
+                old_item = (
+                    selected_row[
+                        "item_name"
+                    ]
+                )
+
+                old_item_type = (
+                    selected_row.get(
+                        "item_type",
+                        ""
                     )
+                    or ""
+                )
 
-                    old_item = (
-                        selected_row["item_name"]
+                old_quantity = float(
+                    selected_row[
+                        "quantity"
+                    ]
+                    or 0
+                )
+
+                old_rate = float(
+                    selected_row.get(
+                        "rate",
+                        0
                     )
-
-                    old_quantity = float(
-                        selected_row["quantity"] or 0
-                    )
+                    or 0
+                )
 
 
-                    st.caption(
-                        f"Original: "
-                        f"{old_instrument} → "
-                        f"{old_item} | "
-                        f"Qty {old_quantity:g}"
-                    )
+                st.caption(
+                    f"Transaction ID: {row_id} | "
+                    f"Entered By: "
+                    f"{selected_row.get('username', '')}"
+                )
 
 
-                    # =====================================
-                    # EDIT INSTRUMENT
-                    # =====================================
+                # -----------------------------------------
+                # EDIT INSTRUMENT
+                # -----------------------------------------
 
-                    edit_instruments = (
-                        get_instruments()
-                    )
+                edit_instruments = (
+                    get_instruments()
+                )
 
-                    if (
+                if (
+                    old_instrument
+                    not in edit_instruments
+                ):
+
+                    edit_instruments.append(
                         old_instrument
-                        not in edit_instruments
-                    ):
-                        edit_instruments.append(
+                    )
+
+
+                try:
+
+                    instrument_index = (
+                        edit_instruments.index(
                             old_instrument
                         )
+                    )
+
+                except ValueError:
+
+                    instrument_index = 0
 
 
-                    try:
-
-                        instrument_index = (
-                            edit_instruments.index(
-                                old_instrument
-                            )
-                        )
-
-                    except ValueError:
-
-                        instrument_index = 0
-
-
-                    new_instrument = st.selectbox(
+                new_instrument = (
+                    st.selectbox(
                         "Instrument",
                         edit_instruments,
                         index=instrument_index,
-                        key="edit_stock_in_instrument"
+                        key=(
+                            f"in_edit_instrument_"
+                            f"{row_id}"
+                        )
+                    )
+                )
+
+
+                # -----------------------------------------
+                # EDIT ITEM
+                # -----------------------------------------
+
+                edit_items = get_items(
+                    new_instrument
+                )
+
+                if (
+                    new_instrument
+                    == old_instrument
+                    and old_item not in edit_items
+                ):
+
+                    edit_items.append(
+                        old_item
                     )
 
 
-                    # =====================================
-                    # EDIT ITEM
-                    # =====================================
+                if not edit_items:
 
-                    edit_items = get_items(
-                        new_instrument
+                    st.warning(
+                        "No Item available for "
+                        "selected Instrument."
                     )
 
+                    new_item = None
+
+                else:
 
                     if (
                         new_instrument
                         == old_instrument
-                        and old_item not in edit_items
+                        and old_item in edit_items
                     ):
-                        edit_items.append(
-                            old_item
+
+                        item_index = (
+                            edit_items.index(
+                                old_item
+                            )
                         )
-
-
-                    if not edit_items:
-
-                        st.warning(
-                            "No Item available for "
-                            "selected Instrument."
-                        )
-
-                        new_item = None
 
                     else:
 
-                        if (
-                            new_instrument
-                            == old_instrument
-                            and old_item in edit_items
-                        ):
+                        item_index = 0
 
-                            item_index = (
-                                edit_items.index(
-                                    old_item
-                                )
+
+                    new_item = st.selectbox(
+                        "Item",
+                        edit_items,
+                        index=item_index,
+                        key=(
+                            f"in_edit_item_"
+                            f"{row_id}_"
+                            f"{new_instrument}"
+                        )
+                    )
+
+
+                # -----------------------------------------
+                # EDIT ITEM TYPE
+                # -----------------------------------------
+
+                default_new_type = (
+                    old_item_type
+                )
+
+                if (
+                    new_item
+                    and (
+                        new_instrument
+                        != old_instrument
+                        or new_item
+                        != old_item
+                    )
+                ):
+
+                    new_details = (
+                        get_item_details(
+                            new_instrument,
+                            new_item
+                        )
+                    )
+
+                    if new_details:
+
+                        default_new_type = (
+                            new_details.get(
+                                "item_type",
+                                ""
+                            )
+                            or ""
+                        )
+
+
+                new_item_type = (
+                    st.text_input(
+                        "Item Type",
+                        value=default_new_type,
+                        key=(
+                            f"in_edit_type_"
+                            f"{row_id}_"
+                            f"{new_instrument}_"
+                            f"{new_item}"
+                        )
+                    )
+                )
+
+
+                # -----------------------------------------
+                # EDIT QUANTITY
+                # -----------------------------------------
+
+                edit_qty_text = st.text_input(
+                    "Quantity",
+                    value=str(old_quantity),
+                    key=(
+                        f"in_edit_qty_"
+                        f"{row_id}"
+                    )
+                )
+
+
+                # -----------------------------------------
+                # EDIT RATE
+                # -----------------------------------------
+
+                edit_rate_text = st.text_input(
+                    "Rate (₹)",
+                    value=str(old_rate),
+                    key=(
+                        f"in_edit_rate_"
+                        f"{row_id}"
+                    )
+                )
+
+
+                # -----------------------------------------
+                # TOTAL VALUE
+                # -----------------------------------------
+
+                try:
+
+                    preview_qty = float(
+                        edit_qty_text
+                        .replace(",", "")
+                        .strip()
+                    )
+
+                    preview_rate = float(
+                        edit_rate_text
+                        .replace(",", "")
+                        .strip()
+                    )
+
+                    st.success(
+                        f"Total Value: "
+                        f"₹"
+                        f"{preview_qty * preview_rate:,.2f}"
+                    )
+
+                except ValueError:
+
+                    pass
+
+
+                # -----------------------------------------
+                # EDIT REMARKS
+                # -----------------------------------------
+
+                edit_remarks = st.text_input(
+                    "Supplier / PO No. / Remarks",
+                    value=(
+                        selected_row.get(
+                            "remarks",
+                            ""
+                        )
+                        or ""
+                    ),
+                    key=(
+                        f"in_edit_remarks_"
+                        f"{row_id}"
+                    )
+                )
+
+
+                c1, c2 = st.columns(2)
+
+
+                # =========================================
+                # UPDATE STOCK IN
+                # =========================================
+
+                with c1:
+
+                    if st.button(
+                        "💾 Update Stock IN",
+                        type="primary",
+                        key=(
+                            f"update_stock_in_"
+                            f"{row_id}"
+                        )
+                    ):
+
+                        if not new_item:
+
+                            st.error(
+                                "Please select Item."
+                            )
+
+                        elif not new_item_type.strip():
+
+                            st.error(
+                                "Enter Item Type."
                             )
 
                         else:
 
-                            item_index = 0
+                            try:
 
-
-                        new_item = st.selectbox(
-                            "Item",
-                            edit_items,
-                            index=item_index,
-                            key="edit_stock_in_item"
-                        )
-
-
-                    # =====================================
-                    # ITEM TYPE
-                    # =====================================
-
-                    new_item_type = ""
-
-                    if new_item:
-
-                        new_details = (
-                            get_item_details(
-                                new_instrument,
-                                new_item
-                            )
-                        )
-
-                        if new_details:
-
-                            new_item_type = (
-                                new_details.get(
-                                    "item_type",
-                                    ""
+                                new_qty = float(
+                                    edit_qty_text
+                                    .replace(",", "")
+                                    .strip()
                                 )
-                            )
 
+                                new_rate = float(
+                                    edit_rate_text
+                                    .replace(",", "")
+                                    .strip()
+                                )
 
-                    st.text_input(
-                        "Item Type",
-                        value=new_item_type,
-                        disabled=True,
-                        key="edit_stock_in_type"
-                    )
-
-
-                    # =====================================
-                    # QUANTITY
-                    # =====================================
-
-                    edit_qty_text = st.text_input(
-                        "Quantity",
-                        value=str(
-                            selected_row["quantity"]
-                        ),
-                        key="edit_stock_in_qty"
-                    )
-
-
-                    # =====================================
-                    # AMOUNT
-                    # =====================================
-
-                    old_amount = float(
-                        selected_row.get(
-                            "amount",
-                            0
-                        )
-                        or 0
-                    )
-
-
-                    edit_amount_text = st.text_input(
-                        "Amount (₹)",
-                        value=str(old_amount),
-                        key="edit_stock_in_amount"
-                    )
-
-
-                    # =====================================
-                    # REMARKS
-                    # =====================================
-
-                    edit_remarks = st.text_input(
-                        "Supplier / PO No. / Remarks",
-                        value=(
-                            selected_row.get(
-                                "remarks",
-                                ""
-                            )
-                            or ""
-                        ),
-                        key="edit_stock_in_remarks"
-                    )
-
-
-                    col_update, col_delete = (
-                        st.columns(2)
-                    )
-
-
-                    # =====================================
-                    # UPDATE STOCK IN
-                    # =====================================
-
-                    with col_update:
-
-                        if st.button(
-                            "💾 Update Stock IN",
-                            type="primary"
-                        ):
-
-                            if not new_item:
+                            except ValueError:
 
                                 st.error(
-                                    "Please select an Item."
+                                    "Quantity and Rate "
+                                    "must be numeric."
                                 )
 
                             else:
 
-                                try:
-
-                                    new_qty = float(
-                                        edit_qty_text
-                                        .replace(",", "")
-                                        .strip()
-                                    )
-
-                                    new_amount = float(
-                                        edit_amount_text
-                                        .replace(",", "")
-                                        .strip()
-                                    )
-
-                                except ValueError:
+                                if new_qty <= 0:
 
                                     st.error(
-                                        "Quantity and Amount "
-                                        "must be numeric."
+                                        "Quantity must be "
+                                        "greater than 0."
+                                    )
+
+                                elif new_rate < 0:
+
+                                    st.error(
+                                        "Rate cannot be negative."
                                     )
 
                                 else:
 
-                                    if new_qty <= 0:
+                                    # Old stock must remain
+                                    # non-negative after
+                                    # removing original IN.
 
-                                        st.error(
-                                            "Quantity must be "
-                                            "greater than 0."
+                                    old_current_stock = (
+                                        get_current_stock(
+                                            old_instrument,
+                                            old_item
                                         )
+                                    )
 
-                                    elif new_amount < 0:
 
-                                        st.error(
-                                            "Amount cannot "
-                                            "be negative."
+                                    # If same stock item:
+                                    # current - old + new
+                                    if (
+                                        new_instrument
+                                        == old_instrument
+                                        and new_item
+                                        == old_item
+                                    ):
+
+                                        final_old_stock = (
+                                            old_current_stock
+                                            - old_quantity
+                                            + new_qty
                                         )
 
                                     else:
 
-                                        # ==================
-                                        # IMPORTANT STOCK
-                                        # VALIDATION
-                                        # ==================
-
-                                        old_current_stock = (
-                                            get_current_stock(
-                                                old_instrument,
-                                                old_item
-                                            )
-                                        )
-
-
-                                        # Remove original IN
-                                        # from old location.
-
-                                        old_stock_after_remove = (
+                                        final_old_stock = (
                                             old_current_stock
                                             - old_quantity
                                         )
 
 
-                                        if (
-                                            old_stock_after_remove
-                                            < 0
-                                        ):
+                                    if final_old_stock < 0:
 
-                                            st.error(
-                                                "Cannot update this "
-                                                "Stock IN because "
-                                                "some quantity has "
-                                                "already been issued "
-                                                "through Stock OUT."
+                                        st.error(
+                                            "Cannot update. "
+                                            "Stock OUT already "
+                                            "uses this Stock IN "
+                                            "quantity."
+                                        )
+
+                                    else:
+
+                                        (
+                                            supabase
+                                            .table(
+                                                "transactions"
                                             )
+                                            .update({
 
-                                        else:
+                                                "instrument_name":
+                                                    new_instrument,
 
-                                            new_rate = (
-                                                new_amount
-                                                / new_qty
+                                                "item_name":
+                                                    new_item,
+
+                                                "item_type":
+                                                    new_item_type
+                                                    .strip(),
+
+                                                "quantity":
+                                                    new_qty,
+
+                                                "rate":
+                                                    new_rate,
+
+                                                "remarks":
+                                                    edit_remarks
+                                                    .strip()
+                                            })
+                                            .eq(
+                                                "id",
+                                                row_id
                                             )
+                                            .execute()
+                                        )
+
+                                        st.success(
+                                            "Stock IN updated."
+                                        )
+
+                                        st.rerun()
 
 
-                                            (
-                                                supabase
-                                                .table(
-                                                    "transactions"
-                                                )
-                                                .update({
+                # =========================================
+                # DELETE STOCK IN
+                # =========================================
 
-                                                    "instrument_name":
-                                                        new_instrument,
+                with c2:
 
-                                                    "item_name":
-                                                        new_item,
+                    confirm_delete = st.checkbox(
+                        "Confirm Delete",
+                        key=(
+                            f"in_delete_confirm_"
+                            f"{row_id}"
+                        )
+                    )
 
-                                                    "item_type":
-                                                        new_item_type,
+                    if st.button(
+                        "🗑 Delete Stock IN",
+                        key=(
+                            f"delete_stock_in_"
+                            f"{row_id}"
+                        )
+                    ):
 
-                                                    "quantity":
-                                                        new_qty,
+                        if not confirm_delete:
 
-                                                    "amount":
-                                                        new_amount,
+                            st.warning(
+                                "Tick Confirm Delete."
+                            )
 
-                                                    "rate":
-                                                        new_rate,
+                        else:
 
-                                                    "remarks":
-                                                        edit_remarks
-                                                        .strip()
-                                                })
-                                                .eq(
-                                                    "id",
-                                                    selected_row[
-                                                        "id"
-                                                    ]
-                                                )
-                                                .execute()
-                                            )
-
-
-                                            st.success(
-                                                "Stock IN updated "
-                                                "successfully."
-                                            )
-
-                                            st.rerun()
-
-
-                    # =====================================
-                    # DELETE STOCK IN
-                    # =====================================
-
-                    with col_delete:
-
-                        confirm_delete = (
-                            st.checkbox(
-                                "Confirm Delete",
-                                key=(
-                                    "stock_in_"
-                                    "delete_confirm"
+                            current_old_stock = (
+                                get_current_stock(
+                                    old_instrument,
+                                    old_item
                                 )
                             )
-                        )
+
+                            stock_after_delete = (
+                                current_old_stock
+                                - old_quantity
+                            )
 
 
-                        if st.button(
-                            "🗑 Delete Stock IN"
-                        ):
+                            if stock_after_delete < 0:
 
-                            if not confirm_delete:
-
-                                st.warning(
-                                    "Tick Confirm Delete."
+                                st.error(
+                                    "Cannot delete this "
+                                    "Stock IN because "
+                                    "Stock OUT already "
+                                    "uses this quantity."
                                 )
 
                             else:
 
-                                current_old_stock = (
-                                    get_current_stock(
-                                        old_instrument,
-                                        old_item
+                                (
+                                    supabase
+                                    .table(
+                                        "transactions"
                                     )
+                                    .delete()
+                                    .eq(
+                                        "id",
+                                        row_id
+                                    )
+                                    .execute()
                                 )
 
-
-                                stock_after_delete = (
-                                    current_old_stock
-                                    - old_quantity
+                                st.success(
+                                    "Stock IN deleted."
                                 )
 
-
-                                if stock_after_delete < 0:
-
-                                    st.error(
-                                        "Cannot delete this "
-                                        "Stock IN because "
-                                        "Stock OUT already "
-                                        "uses this quantity."
-                                    )
-
-                                else:
-
-                                    (
-                                        supabase
-                                        .table(
-                                            "transactions"
-                                        )
-                                        .delete()
-                                        .eq(
-                                            "id",
-                                            selected_row["id"]
-                                        )
-                                        .execute()
-                                    )
-
-
-                                    st.success(
-                                        "Stock IN deleted."
-                                    )
-
-                                    st.rerun()
+                                st.rerun()
 
 
     # =====================================================
-    # ADMIN - EDIT/DELETE PERMISSION
+    # STOCK IN PERMISSION
     # =====================================================
 
     if tab_permission is not None:
@@ -2227,8 +2398,7 @@ elif menu == "Stock IN":
         with tab_permission:
 
             st.subheader(
-                "🔐 Stock IN "
-                "Edit/Delete Permission"
+                "🔐 Stock IN Edit/Delete Permission"
             )
 
             users_response = (
@@ -2239,19 +2409,17 @@ elif menu == "Stock IN":
                     "role,"
                     "can_stock_in_edit_delete"
                 )
-                .order(
-                    "username"
-                )
+                .order("username")
                 .execute()
             )
 
             normal_users = [
                 row
-                for row
-                in users_response.data
+                for row in users_response.data
                 if row["username"]
                 != st.session_state.username
             ]
+
 
             if not normal_users:
 
@@ -2263,8 +2431,7 @@ elif menu == "Stock IN":
 
                 permission_usernames = [
                     row["username"]
-                    for row
-                    in normal_users
+                    for row in normal_users
                 ]
 
                 selected_permission_user = (
@@ -2280,31 +2447,25 @@ elif menu == "Stock IN":
                 permission_row = next(
                     row
                     for row in normal_users
-                    if (
-                        row["username"]
-                        ==
-                        selected_permission_user
-                    )
+                    if row["username"]
+                    == selected_permission_user
                 )
 
-                allow_edit_delete = (
-                    st.checkbox(
-                        "Allow Stock IN Edit/Delete",
-                        value=bool(
-                            permission_row.get(
-                                "can_stock_in_edit_delete",
-                                0
-                            )
-                        ),
-                        key=(
-                            "allow_stock_in_"
-                            "edit_delete"
+                allow_edit_delete = st.checkbox(
+                    "Allow Stock IN Edit/Delete",
+                    value=bool(
+                        permission_row.get(
+                            "can_stock_in_edit_delete",
+                            0
                         )
+                    ),
+                    key=(
+                        "allow_stock_in_edit_delete"
                     )
                 )
 
                 if st.button(
-                    "💾 Save Permission"
+                    "💾 Save Stock IN Permission"
                 ):
 
                     (
@@ -2324,10 +2485,11 @@ elif menu == "Stock IN":
                     )
 
                     st.success(
-                        "Permission updated."
+                        "Stock IN permission updated."
                     )
 
                     st.rerun()
+
 
 
 # =========================================================
@@ -2339,10 +2501,10 @@ elif menu == "Stock OUT":
     st.header("📤 Stock OUT")
 
     # =====================================================
-    # CHECK EDIT / DELETE PERMISSION
+    # EDIT / DELETE PERMISSION
     # =====================================================
 
-    permission_check = (
+    permission_check_out = (
         supabase
         .table("users")
         .select("can_stock_out_edit_delete")
@@ -2354,18 +2516,17 @@ elif menu == "Stock OUT":
         .execute()
     )
 
-    # Admin always allowed
     can_edit_delete_out = (
         st.session_state.role == "Admin"
     )
 
-    # Normal user needs permission
     if (
         not can_edit_delete_out
-        and permission_check.data
+        and permission_check_out.data
     ):
+
         can_edit_delete_out = bool(
-            permission_check.data[0].get(
+            permission_check_out.data[0].get(
                 "can_stock_out_edit_delete",
                 0
             )
@@ -2378,14 +2539,16 @@ elif menu == "Stock OUT":
 
     if st.session_state.role == "Admin":
 
-        tab_entry_out, tab_edit_out, tab_permission_out = (
-            st.tabs(
-                [
-                    "➕ Stock OUT Entry",
-                    "✏️ Edit / Delete",
-                    "🔐 Edit/Delete Permission"
-                ]
-            )
+        (
+            tab_entry_out,
+            tab_edit_out,
+            tab_permission_out
+        ) = st.tabs(
+            [
+                "➕ Stock OUT Entry",
+                "✏️ Edit / Delete",
+                "🔐 Edit/Delete Permission"
+            ]
         )
 
     elif can_edit_delete_out:
@@ -2402,7 +2565,6 @@ elif menu == "Stock OUT":
     else:
 
         tab_entry_out = st.container()
-
         tab_edit_out = None
         tab_permission_out = None
 
@@ -2413,9 +2575,9 @@ elif menu == "Stock OUT":
 
     with tab_entry_out:
 
-        instruments = get_instruments()
+        instruments_out = get_instruments()
 
-        if not instruments:
+        if not instruments_out:
 
             st.warning(
                 "No Instrument available."
@@ -2424,7 +2586,7 @@ elif menu == "Stock OUT":
         else:
 
             # ---------------------------------------------
-            # RESET AFTER SAVE
+            # RESET
             # ---------------------------------------------
 
             if st.session_state.pop(
@@ -2441,7 +2603,11 @@ elif menu == "Stock OUT":
                 ] = "-- Select Item --"
 
                 st.session_state[
-                    "stock_out_qty_text"
+                    "stock_out_qty"
+                ] = ""
+
+                st.session_state[
+                    "stock_out_rate"
                 ] = ""
 
                 st.session_state[
@@ -2455,7 +2621,7 @@ elif menu == "Stock OUT":
 
             instrument_options_out = (
                 ["-- Select Instrument --"]
-                + instruments
+                + instruments_out
             )
 
             instrument_out = st.selectbox(
@@ -2516,7 +2682,7 @@ elif menu == "Stock OUT":
                     else:
 
                         # ---------------------------------
-                        # ITEM DETAILS
+                        # ITEM TYPE
                         # ---------------------------------
 
                         details_out = (
@@ -2526,26 +2692,44 @@ elif menu == "Stock OUT":
                             )
                         )
 
-                        item_type_out = (
-                            details_out["item_type"]
+                        master_item_type_out = ""
+
+                        if details_out:
+
+                            master_item_type_out = (
+                                details_out.get(
+                                    "item_type",
+                                    ""
+                                )
+                                or ""
+                            )
+
+
+                        item_type_out = st.text_input(
+                            "Item Type",
+                            value=master_item_type_out,
+                            key=(
+                                f"stock_out_item_type_"
+                                f"{instrument_out}_"
+                                f"{item_out}"
+                            )
                         )
 
-                        available_out = (
+
+                        # ---------------------------------
+                        # AVAILABLE STOCK
+                        # ---------------------------------
+
+                        available_stock = (
                             get_current_stock(
                                 instrument_out,
                                 item_out
                             )
                         )
 
-
-                        st.write(
-                            f"**Type:** "
-                            f"{item_type_out}"
-                        )
-
                         st.metric(
                             "Available Stock",
-                            available_out
+                            available_stock
                         )
 
 
@@ -2556,10 +2740,7 @@ elif menu == "Stock OUT":
                         quantity_out_text = (
                             st.text_input(
                                 "Quantity",
-                                key=(
-                                    "stock_out_"
-                                    "qty_text"
-                                ),
+                                key="stock_out_qty",
                                 placeholder=(
                                     "Type quantity"
                                 )
@@ -2567,14 +2748,27 @@ elif menu == "Stock OUT":
                         )
 
 
+                        # ---------------------------------
+                        # RATE
+                        # ---------------------------------
+
+                        rate_out_text = (
+                            st.text_input(
+                                "Rate (₹)",
+                                key="stock_out_rate",
+                                placeholder=(
+                                    "Type rate"
+                                )
+                            )
+                        )
+
+
                         quantity_out = 0.0
-                        quantity_out_ok = True
+                        rate_out = 0.0
+                        input_out_ok = True
 
 
-                        if (
-                            quantity_out_text
-                            .strip()
-                        ):
+                        if quantity_out_text.strip():
 
                             try:
 
@@ -2586,7 +2780,7 @@ elif menu == "Stock OUT":
 
                                 if quantity_out <= 0:
 
-                                    quantity_out_ok = False
+                                    input_out_ok = False
 
                                     st.warning(
                                         "Quantity must be "
@@ -2595,12 +2789,59 @@ elif menu == "Stock OUT":
 
                             except ValueError:
 
-                                quantity_out_ok = False
+                                input_out_ok = False
 
                                 st.warning(
-                                    "Quantity must "
-                                    "be a number."
+                                    "Quantity must be numeric."
                                 )
+
+
+                        if rate_out_text.strip():
+
+                            try:
+
+                                rate_out = float(
+                                    rate_out_text
+                                    .replace(",", "")
+                                    .strip()
+                                )
+
+                                if rate_out < 0:
+
+                                    input_out_ok = False
+
+                                    st.warning(
+                                        "Rate cannot be negative."
+                                    )
+
+                            except ValueError:
+
+                                input_out_ok = False
+
+                                st.warning(
+                                    "Rate must be numeric."
+                                )
+
+
+                        # ---------------------------------
+                        # TOTAL
+                        # ---------------------------------
+
+                        if (
+                            quantity_out_text.strip()
+                            and rate_out_text.strip()
+                            and input_out_ok
+                        ):
+
+                            total_out_value = (
+                                quantity_out
+                                * rate_out
+                            )
+
+                            st.success(
+                                f"Total Value: "
+                                f"₹{total_out_value:,.2f}"
+                            )
 
 
                         # ---------------------------------
@@ -2617,7 +2858,7 @@ elif menu == "Stock OUT":
 
 
                         # ---------------------------------
-                        # SAVE STOCK OUT
+                        # SAVE
                         # ---------------------------------
 
                         if st.button(
@@ -2625,16 +2866,25 @@ elif menu == "Stock OUT":
                             type="primary"
                         ):
 
-                            if (
-                                not quantity_out_text
-                                .strip()
-                            ):
+                            if not item_type_out.strip():
+
+                                st.warning(
+                                    "Enter Item Type."
+                                )
+
+                            elif not quantity_out_text.strip():
 
                                 st.warning(
                                     "Enter Quantity."
                                 )
 
-                            elif not quantity_out_ok:
+                            elif not rate_out_text.strip():
+
+                                st.warning(
+                                    "Enter Rate."
+                                )
+
+                            elif not input_out_ok:
 
                                 pass
 
@@ -2647,22 +2897,26 @@ elif menu == "Stock OUT":
 
                             elif (
                                 quantity_out
-                                > available_out
+                                > available_stock
                             ):
 
                                 st.error(
                                     f"Insufficient Stock. "
-                                    f"Available Stock: "
-                                    f"{available_out}"
+                                    f"Available: "
+                                    f"{available_stock:g}"
+                                )
+
+                            elif rate_out < 0:
+
+                                st.warning(
+                                    "Rate cannot be negative."
                                 )
 
                             else:
 
                                 (
                                     supabase
-                                    .table(
-                                        "transactions"
-                                    )
+                                    .table("transactions")
                                     .insert({
 
                                         "txn_date":
@@ -2677,13 +2931,17 @@ elif menu == "Stock OUT":
                                             item_out,
 
                                         "item_type":
-                                            item_type_out,
+                                            item_type_out
+                                            .strip(),
 
                                         "txn_type":
                                             "OUT",
 
                                         "quantity":
                                             quantity_out,
+
+                                        "rate":
+                                            rate_out,
 
                                         "remarks":
                                             remarks_out
@@ -2707,7 +2965,7 @@ elif menu == "Stock OUT":
                                 st.rerun()
 
 
-        # =====================================================
+    # =====================================================
     # STOCK OUT EDIT / DELETE
     # =====================================================
 
@@ -2715,494 +2973,572 @@ elif menu == "Stock OUT":
 
         with tab_edit_out:
 
-            if not can_edit_delete_out:
+            response_out = (
+                supabase
+                .table("transactions")
+                .select(
+                    "id,"
+                    "txn_date,"
+                    "instrument_name,"
+                    "item_name,"
+                    "item_type,"
+                    "quantity,"
+                    "rate,"
+                    "remarks,"
+                    "username"
+                )
+                .eq(
+                    "txn_type",
+                    "OUT"
+                )
+                .order(
+                    "id",
+                    desc=True
+                )
+                .execute()
+            )
 
-                st.error(
-                    "You do not have Edit/Delete permission."
+            stock_out_rows = (
+                response_out.data
+            )
+
+
+            if not stock_out_rows:
+
+                st.info(
+                    "No Stock OUT transactions available."
                 )
 
             else:
 
-                response_out = (
-                    supabase
-                    .table("transactions")
-                    .select(
-                        "id,"
-                        "txn_date,"
-                        "instrument_name,"
-                        "item_name,"
-                        "item_type,"
-                        "quantity,"
-                        "remarks,"
-                        "username"
+                row_map_out = {}
+                row_labels_out = []
+
+
+                for row in stock_out_rows:
+
+                    label_out = (
+                        f"ID {row['id']} | "
+                        f"{row['instrument_name']} | "
+                        f"{row['item_name']} | "
+                        f"Qty {float(row['quantity']):g}"
                     )
-                    .eq("txn_type", "OUT")
-                    .order("id", desc=True)
-                    .execute()
+
+                    row_labels_out.append(
+                        label_out
+                    )
+
+                    row_map_out[
+                        label_out
+                    ] = row
+
+
+                selected_label_out = st.selectbox(
+                    "Select Stock OUT Entry",
+                    row_labels_out,
+                    key="stock_out_edit_row"
+                )
+
+                selected_row_out = (
+                    row_map_out[
+                        selected_label_out
+                    ]
+                )
+
+                row_id_out = (
+                    selected_row_out[
+                        "id"
+                    ]
+                )
+
+                old_out_instrument = (
+                    selected_row_out[
+                        "instrument_name"
+                    ]
+                )
+
+                old_out_item = (
+                    selected_row_out[
+                        "item_name"
+                    ]
+                )
+
+                old_out_item_type = (
+                    selected_row_out.get(
+                        "item_type",
+                        ""
+                    )
+                    or ""
+                )
+
+                old_out_quantity = float(
+                    selected_row_out[
+                        "quantity"
+                    ]
+                    or 0
+                )
+
+                old_out_rate = float(
+                    selected_row_out.get(
+                        "rate",
+                        0
+                    )
+                    or 0
                 )
 
 
-                stock_out_rows = (
-                    response_out.data
+                st.caption(
+                    f"Transaction ID: "
+                    f"{row_id_out} | "
+                    f"Entered By: "
+                    f"{selected_row_out.get('username', '')}"
                 )
 
 
-                if not stock_out_rows:
+                # -----------------------------------------
+                # EDIT INSTRUMENT
+                # -----------------------------------------
 
-                    st.info(
-                        "No Stock OUT transactions available."
-                    )
+                out_edit_instruments = (
+                    get_instruments()
+                )
 
-                else:
+                if (
+                    old_out_instrument
+                    not in out_edit_instruments
+                ):
 
-                    row_map_out = {}
-                    row_labels_out = []
-
-
-                    for row in stock_out_rows:
-
-                        label_out = (
-                            f"{row['instrument_name']} | "
-                            f"{row['item_name']} | "
-                            f"Qty: "
-                            f"{float(row['quantity']):g} | "
-                            f"ID: {row['id']}"
-                        )
-
-                        row_labels_out.append(
-                            label_out
-                        )
-
-                        row_map_out[
-                            label_out
-                        ] = row
-
-
-                    selected_label_out = (
-                        st.selectbox(
-                            "Select Stock OUT Entry",
-                            row_labels_out,
-                            key=(
-                                "edit_stock_out_"
-                                "transaction"
-                            )
-                        )
-                    )
-
-
-                    selected_row_out = (
-                        row_map_out[
-                            selected_label_out
-                        ]
-                    )
-
-
-                    # =====================================
-                    # ORIGINAL DATA
-                    # =====================================
-
-                    old_out_instrument = (
-                        selected_row_out[
-                            "instrument_name"
-                        ]
-                    )
-
-                    old_out_item = (
-                        selected_row_out[
-                            "item_name"
-                        ]
-                    )
-
-                    old_out_quantity = float(
-                        selected_row_out[
-                            "quantity"
-                        ]
-                        or 0
-                    )
-
-
-                    st.caption(
-                        f"Original: "
-                        f"{old_out_instrument} → "
-                        f"{old_out_item} | "
-                        f"Qty "
-                        f"{old_out_quantity:g}"
-                    )
-
-
-                    # =====================================
-                    # EDIT INSTRUMENT
-                    # =====================================
-
-                    out_instruments = (
-                        get_instruments()
-                    )
-
-
-                    if (
+                    out_edit_instruments.append(
                         old_out_instrument
-                        not in out_instruments
-                    ):
+                    )
 
-                        out_instruments.append(
+
+                try:
+
+                    out_instrument_index = (
+                        out_edit_instruments.index(
                             old_out_instrument
                         )
+                    )
+
+                except ValueError:
+
+                    out_instrument_index = 0
 
 
-                    try:
-
-                        out_instrument_index = (
-                            out_instruments.index(
-                                old_out_instrument
-                            )
-                        )
-
-                    except ValueError:
-
-                        out_instrument_index = 0
+                new_out_instrument = st.selectbox(
+                    "Instrument",
+                    out_edit_instruments,
+                    index=out_instrument_index,
+                    key=(
+                        f"out_edit_instrument_"
+                        f"{row_id_out}"
+                    )
+                )
 
 
-                    new_out_instrument = (
-                        st.selectbox(
-                            "Instrument",
-                            out_instruments,
-                            index=(
-                                out_instrument_index
-                            ),
-                            key=(
-                                "edit_stock_out_"
-                                "instrument"
-                            )
-                        )
+                # -----------------------------------------
+                # EDIT ITEM
+                # -----------------------------------------
+
+                out_edit_items = get_items(
+                    new_out_instrument
+                )
+
+                if (
+                    new_out_instrument
+                    == old_out_instrument
+                    and old_out_item
+                    not in out_edit_items
+                ):
+
+                    out_edit_items.append(
+                        old_out_item
                     )
 
 
-                    # =====================================
-                    # EDIT ITEM
-                    # =====================================
+                if not out_edit_items:
 
-                    out_items = get_items(
-                        new_out_instrument
+                    st.warning(
+                        "No Item available for "
+                        "selected Instrument."
                     )
 
+                    new_out_item = None
+
+                else:
 
                     if (
                         new_out_instrument
                         == old_out_instrument
                         and old_out_item
-                        not in out_items
+                        in out_edit_items
                     ):
 
-                        out_items.append(
-                            old_out_item
+                        out_item_index = (
+                            out_edit_items.index(
+                                old_out_item
+                            )
                         )
-
-
-                    if not out_items:
-
-                        st.warning(
-                            "No Item available for "
-                            "selected Instrument."
-                        )
-
-                        new_out_item = None
 
                     else:
 
-                        if (
-                            new_out_instrument
-                            == old_out_instrument
-                            and old_out_item
-                            in out_items
-                        ):
+                        out_item_index = 0
 
-                            out_item_index = (
-                                out_items.index(
-                                    old_out_item
-                                )
+
+                    new_out_item = st.selectbox(
+                        "Item",
+                        out_edit_items,
+                        index=out_item_index,
+                        key=(
+                            f"out_edit_item_"
+                            f"{row_id_out}_"
+                            f"{new_out_instrument}"
+                        )
+                    )
+
+
+                # -----------------------------------------
+                # ITEM TYPE EDITABLE
+                # -----------------------------------------
+
+                default_out_type = (
+                    old_out_item_type
+                )
+
+                if (
+                    new_out_item
+                    and (
+                        new_out_instrument
+                        != old_out_instrument
+                        or new_out_item
+                        != old_out_item
+                    )
+                ):
+
+                    out_details_new = (
+                        get_item_details(
+                            new_out_instrument,
+                            new_out_item
+                        )
+                    )
+
+                    if out_details_new:
+
+                        default_out_type = (
+                            out_details_new.get(
+                                "item_type",
+                                ""
+                            )
+                            or ""
+                        )
+
+
+                new_out_item_type = st.text_input(
+                    "Item Type",
+                    value=default_out_type,
+                    key=(
+                        f"out_edit_type_"
+                        f"{row_id_out}_"
+                        f"{new_out_instrument}_"
+                        f"{new_out_item}"
+                    )
+                )
+
+
+                # -----------------------------------------
+                # QUANTITY
+                # -----------------------------------------
+
+                edit_out_qty_text = st.text_input(
+                    "Quantity",
+                    value=str(
+                        old_out_quantity
+                    ),
+                    key=(
+                        f"out_edit_qty_"
+                        f"{row_id_out}"
+                    )
+                )
+
+
+                # -----------------------------------------
+                # RATE
+                # -----------------------------------------
+
+                edit_out_rate_text = st.text_input(
+                    "Rate (₹)",
+                    value=str(
+                        old_out_rate
+                    ),
+                    key=(
+                        f"out_edit_rate_"
+                        f"{row_id_out}"
+                    )
+                )
+
+
+                # -----------------------------------------
+                # TOTAL VALUE
+                # -----------------------------------------
+
+                try:
+
+                    preview_out_qty = float(
+                        edit_out_qty_text
+                        .replace(",", "")
+                        .strip()
+                    )
+
+                    preview_out_rate = float(
+                        edit_out_rate_text
+                        .replace(",", "")
+                        .strip()
+                    )
+
+                    st.success(
+                        f"Total Value: "
+                        f"₹"
+                        f"{preview_out_qty * preview_out_rate:,.2f}"
+                    )
+
+                except ValueError:
+
+                    pass
+
+
+                # -----------------------------------------
+                # REMARKS
+                # -----------------------------------------
+
+                edit_out_remarks = st.text_input(
+                    (
+                        "Issued To / Department "
+                        "/ Remarks"
+                    ),
+                    value=(
+                        selected_row_out.get(
+                            "remarks",
+                            ""
+                        )
+                        or ""
+                    ),
+                    key=(
+                        f"out_edit_remarks_"
+                        f"{row_id_out}"
+                    )
+                )
+
+
+                c1_out, c2_out = st.columns(2)
+
+
+                # =========================================
+                # UPDATE STOCK OUT
+                # =========================================
+
+                with c1_out:
+
+                    if st.button(
+                        "💾 Update Stock OUT",
+                        type="primary",
+                        key=(
+                            f"update_stock_out_"
+                            f"{row_id_out}"
+                        )
+                    ):
+
+                        if not new_out_item:
+
+                            st.error(
+                                "Please select Item."
+                            )
+
+                        elif not new_out_item_type.strip():
+
+                            st.error(
+                                "Enter Item Type."
                             )
 
                         else:
 
-                            out_item_index = 0
+                            try:
 
-
-                        new_out_item = st.selectbox(
-                            "Item",
-                            out_items,
-                            index=out_item_index,
-                            key=(
-                                "edit_stock_out_item"
-                            )
-                        )
-
-
-                    # =====================================
-                    # ITEM TYPE
-                    # =====================================
-
-                    new_out_item_type = ""
-
-                    if new_out_item:
-
-                        out_details = (
-                            get_item_details(
-                                new_out_instrument,
-                                new_out_item
-                            )
-                        )
-
-                        if out_details:
-
-                            new_out_item_type = (
-                                out_details.get(
-                                    "item_type",
-                                    ""
+                                new_out_qty = float(
+                                    edit_out_qty_text
+                                    .replace(",", "")
+                                    .strip()
                                 )
-                            )
 
-
-                    st.text_input(
-                        "Item Type",
-                        value=new_out_item_type,
-                        disabled=True,
-                        key="edit_stock_out_type"
-                    )
-
-
-                    # =====================================
-                    # QUANTITY
-                    # =====================================
-
-                    edit_out_qty_text = (
-                        st.text_input(
-                            "Quantity",
-                            value=str(
-                                selected_row_out[
-                                    "quantity"
-                                ]
-                            ),
-                            key=(
-                                "edit_stock_out_qty"
-                            )
-                        )
-                    )
-
-
-                    # =====================================
-                    # REMARKS
-                    # =====================================
-
-                    edit_out_remarks = (
-                        st.text_input(
-                            (
-                                "Issued To / Department "
-                                "/ Remarks"
-                            ),
-                            value=(
-                                selected_row_out.get(
-                                    "remarks",
-                                    ""
+                                new_out_rate = float(
+                                    edit_out_rate_text
+                                    .replace(",", "")
+                                    .strip()
                                 )
-                                or ""
-                            ),
-                            key=(
-                                "edit_stock_out_"
-                                "remarks"
-                            )
-                        )
-                    )
 
-
-                    col_update_out, col_delete_out = (
-                        st.columns(2)
-                    )
-
-
-                    # =====================================
-                    # UPDATE STOCK OUT
-                    # =====================================
-
-                    with col_update_out:
-
-                        if st.button(
-                            "💾 Update Stock OUT",
-                            type="primary"
-                        ):
-
-                            if not new_out_item:
+                            except ValueError:
 
                                 st.error(
-                                    "Please select an Item."
+                                    "Quantity and Rate "
+                                    "must be numeric."
                                 )
 
                             else:
 
-                                try:
-
-                                    new_out_qty = float(
-                                        edit_out_qty_text
-                                        .replace(",", "")
-                                        .strip()
-                                    )
-
-                                except ValueError:
+                                if new_out_qty <= 0:
 
                                     st.error(
-                                        "Quantity must "
-                                        "be numeric."
+                                        "Quantity must be "
+                                        "greater than 0."
+                                    )
+
+                                elif new_out_rate < 0:
+
+                                    st.error(
+                                        "Rate cannot be negative."
                                     )
 
                                 else:
 
-                                    if new_out_qty <= 0:
+                                    # Same item:
+                                    # add old OUT back before
+                                    # checking new OUT quantity.
 
-                                        st.error(
-                                            "Quantity must "
-                                            "be greater than 0."
+                                    if (
+                                        new_out_instrument
+                                        == old_out_instrument
+                                        and new_out_item
+                                        == old_out_item
+                                    ):
+
+                                        current_available = (
+                                            get_current_stock(
+                                                old_out_instrument,
+                                                old_out_item
+                                            )
+                                        )
+
+                                        maximum_allowed = (
+                                            current_available
+                                            + old_out_quantity
                                         )
 
                                     else:
 
-                                        # ==================
-                                        # AVAILABLE STOCK
-                                        # ==================
+                                        maximum_allowed = (
+                                            get_current_stock(
+                                                new_out_instrument,
+                                                new_out_item
+                                            )
+                                        )
 
-                                        if (
-                                            new_out_instrument
-                                            == old_out_instrument
-                                            and new_out_item
-                                            == old_out_item
-                                        ):
 
-                                            current_stock_new = (
-                                                get_current_stock(
+                                    if (
+                                        new_out_qty
+                                        > maximum_allowed
+                                    ):
+
+                                        st.error(
+                                            "Insufficient Stock. "
+                                            f"Maximum available: "
+                                            f"{maximum_allowed:g}"
+                                        )
+
+                                    else:
+
+                                        (
+                                            supabase
+                                            .table(
+                                                "transactions"
+                                            )
+                                            .update({
+
+                                                "instrument_name":
                                                     new_out_instrument,
-                                                    new_out_item
-                                                )
+
+                                                "item_name":
+                                                    new_out_item,
+
+                                                "item_type":
+                                                    new_out_item_type
+                                                    .strip(),
+
+                                                "quantity":
+                                                    new_out_qty,
+
+                                                "rate":
+                                                    new_out_rate,
+
+                                                "remarks":
+                                                    edit_out_remarks
+                                                    .strip()
+                                            })
+                                            .eq(
+                                                "id",
+                                                row_id_out
                                             )
+                                            .execute()
+                                        )
 
-                                            maximum_allowed = (
-                                                current_stock_new
-                                                + old_out_quantity
-                                            )
+                                        st.success(
+                                            "Stock OUT updated."
+                                        )
 
-                                        else:
-
-                                            maximum_allowed = (
-                                                get_current_stock(
-                                                    new_out_instrument,
-                                                    new_out_item
-                                                )
-                                            )
+                                        st.rerun()
 
 
-                                        if (
-                                            new_out_qty
-                                            > maximum_allowed
-                                        ):
+                # =========================================
+                # DELETE STOCK OUT
+                # =========================================
 
-                                            st.error(
-                                                "Insufficient Stock. "
-                                                f"Maximum available: "
-                                                f"{maximum_allowed:g}"
-                                            )
+                with c2_out:
 
-                                        else:
-
-                                            (
-                                                supabase
-                                                .table(
-                                                    "transactions"
-                                                )
-                                                .update({
-
-                                                    "instrument_name":
-                                                        new_out_instrument,
-
-                                                    "item_name":
-                                                        new_out_item,
-
-                                                    "item_type":
-                                                        new_out_item_type,
-
-                                                    "quantity":
-                                                        new_out_qty,
-
-                                                    "remarks":
-                                                        edit_out_remarks
-                                                        .strip()
-                                                })
-                                                .eq(
-                                                    "id",
-                                                    selected_row_out[
-                                                        "id"
-                                                    ]
-                                                )
-                                                .execute()
-                                            )
-
-
-                                            st.success(
-                                                "Stock OUT updated "
-                                                "successfully."
-                                            )
-
-                                            st.rerun()
-
-
-                    # =====================================
-                    # DELETE STOCK OUT
-                    # =====================================
-
-                    with col_delete_out:
-
-                        confirm_delete_out = (
-                            st.checkbox(
-                                "Confirm Delete",
-                                key=(
-                                    "stock_out_"
-                                    "delete_confirm"
-                                )
-                            )
+                    confirm_out_delete = st.checkbox(
+                        "Confirm Delete",
+                        key=(
+                            f"out_delete_confirm_"
+                            f"{row_id_out}"
                         )
+                    )
 
+                    if st.button(
+                        "🗑 Delete Stock OUT",
+                        key=(
+                            f"delete_stock_out_"
+                            f"{row_id_out}"
+                        )
+                    ):
 
-                        if st.button(
-                            "🗑 Delete Stock OUT"
-                        ):
+                        if not confirm_out_delete:
 
-                            if not confirm_delete_out:
+                            st.warning(
+                                "Tick Confirm Delete."
+                            )
 
-                                st.warning(
-                                    "Tick Confirm Delete."
+                        else:
+
+                            (
+                                supabase
+                                .table(
+                                    "transactions"
                                 )
-
-                            else:
-
-                                (
-                                    supabase
-                                    .table(
-                                        "transactions"
-                                    )
-                                    .delete()
-                                    .eq(
-                                        "id",
-                                        selected_row_out[
-                                            "id"
-                                        ]
-                                    )
-                                    .execute()
+                                .delete()
+                                .eq(
+                                    "id",
+                                    row_id_out
                                 )
+                                .execute()
+                            )
+
+                            st.success(
+                                "Stock OUT deleted."
+                            )
+
+                            st.rerun()
 
 
-                                st.success(
-                                    "Stock OUT deleted."
-                                )
-
-                                st.rerun()
     # =====================================================
-    # ADMIN - STOCK OUT EDIT/DELETE PERMISSION
+    # STOCK OUT PERMISSION
     # =====================================================
 
     if tab_permission_out is not None:
@@ -3210,10 +3546,8 @@ elif menu == "Stock OUT":
         with tab_permission_out:
 
             st.subheader(
-                "🔐 Stock OUT "
-                "Edit/Delete Permission"
+                "🔐 Stock OUT Edit/Delete Permission"
             )
-
 
             users_response_out = (
                 supabase
@@ -3223,20 +3557,14 @@ elif menu == "Stock OUT":
                     "role,"
                     "can_stock_out_edit_delete"
                 )
-                .order(
-                    "username"
-                )
+                .order("username")
                 .execute()
             )
 
-
             normal_users_out = [
-
                 row
-
                 for row
                 in users_response_out.data
-
                 if row["username"]
                 != st.session_state.username
             ]
@@ -3251,47 +3579,30 @@ elif menu == "Stock OUT":
             else:
 
                 permission_usernames_out = [
-
                     row["username"]
-
-                    for row
-                    in normal_users_out
+                    for row in normal_users_out
                 ]
-
 
                 selected_permission_user_out = (
                     st.selectbox(
                         "Select User",
                         permission_usernames_out,
                         key=(
-                            "stock_out_"
-                            "permission_user"
+                            "stock_out_permission_user"
                         )
                     )
                 )
 
-
                 permission_row_out = next(
-
                     row
-
-                    for row
-                    in normal_users_out
-
-                    if (
-                        row["username"]
-                        ==
-                        selected_permission_user_out
-                    )
+                    for row in normal_users_out
+                    if row["username"]
+                    == selected_permission_user_out
                 )
-
 
                 allow_out_edit_delete = (
                     st.checkbox(
-                        (
-                            "Allow Stock OUT "
-                            "Edit/Delete"
-                        ),
+                        "Allow Stock OUT Edit/Delete",
                         value=bool(
                             permission_row_out.get(
                                 "can_stock_out_edit_delete",
@@ -3299,12 +3610,10 @@ elif menu == "Stock OUT":
                             )
                         ),
                         key=(
-                            "allow_stock_out_"
-                            "edit_delete"
+                            "allow_stock_out_edit_delete"
                         )
                     )
                 )
-
 
                 if st.button(
                     "💾 Save Stock OUT Permission"
@@ -3314,7 +3623,6 @@ elif menu == "Stock OUT":
                         supabase
                         .table("users")
                         .update({
-
                             "can_stock_out_edit_delete":
                                 int(
                                     allow_out_edit_delete
@@ -3327,13 +3635,11 @@ elif menu == "Stock OUT":
                         .execute()
                     )
 
-
                     st.success(
                         "Stock OUT permission updated."
                     )
 
                     st.rerun()
-
 # =========================================================
 # CURRENT STOCK
 # =========================================================
