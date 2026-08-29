@@ -5168,13 +5168,29 @@ elif menu == "Current Stock":
 
     with c1:
 
-        instrument_filter = (
-            st.selectbox(
-                "Instrument",
-                ["ALL"]
-                + get_instruments()
-            )
+        if st.session_state.role == "Admin":
+
+    current_stock_instruments = (
+        get_instruments()
+    )
+
+else:
+
+    current_stock_instruments = (
+        get_user_allowed_instruments(
+            st.session_state.username
         )
+    )
+
+
+instrument_filter = (
+    st.selectbox(
+        "Instrument",
+        ["ALL"]
+        + current_stock_instruments,
+        key="current_stock_instrument_filter"
+    )
+)
 
     with c2:
 
