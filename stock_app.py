@@ -62,6 +62,25 @@ def get_instruments():
         for row in response.data
     ]
 
+def get_user_allowed_instruments(username):
+
+    # Admin সব Instrument দেখতে পারবে
+    if st.session_state.role == "Admin":
+        return get_instruments()
+
+    response = (
+        supabase
+        .table("user_instrument_permissions")
+        .select("instrument_name")
+        .eq("username", username)
+        .eq("can_stock_out", 1)
+        .execute()
+    )
+
+    return [
+        row["instrument_name"]
+        for row in (response.data or [])
+    ]
 
 def get_items(instrument=None):
 
