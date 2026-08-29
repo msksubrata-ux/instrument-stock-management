@@ -5148,9 +5148,9 @@ if st.session_state.role == "Admin":
 
             st.rerun()
 
-# =========================================================
+# =====================================================
 # CURRENT STOCK
-# =========================================================
+# =====================================================
 
 elif menu == "Current Stock":
 
@@ -5158,40 +5158,58 @@ elif menu == "Current Stock":
         "📦 Current Stock Report"
     )
 
+
+    # =================================================
+    # DATE RANGE
+    # =================================================
+
     from_date, to_date = (
         date_range_controls(
             "current_stock"
         )
     )
 
+
+    # =================================================
+    # FILTER COLUMNS
+    # =================================================
+
     c1, c2, c3 = st.columns(3)
+
+
+    # =================================================
+    # INSTRUMENT FILTER
+    # USER-WISE INSTRUMENT PERMISSION
+    # =================================================
 
     with c1:
 
         if st.session_state.role == "Admin":
 
-    current_stock_instruments = (
-        get_instruments()
-    )
+            current_stock_instruments = (
+                get_instruments()
+            )
 
-else:
+        else:
 
-    current_stock_instruments = (
-        get_user_allowed_instruments(
-            st.session_state.username
+            current_stock_instruments = (
+                get_user_allowed_instruments(
+                    st.session_state.username
+                )
+            )
+
+
+        instrument_filter = (
+            st.selectbox(
+                "Instrument",
+                ["ALL"]
+                + current_stock_instruments,
+                key=(
+                    "current_stock_"
+                    "instrument_filter"
+                )
+            )
         )
-    )
-
-
-instrument_filter = (
-    st.selectbox(
-        "Instrument",
-        ["ALL"]
-        + current_stock_instruments,
-        key="current_stock_instrument_filter"
-    )
-)
-
     with c2:
 
         type_filter = st.selectbox(
