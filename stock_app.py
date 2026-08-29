@@ -3151,515 +3151,52 @@ elif menu == "Stock OUT":
         tab_edit_out = None
         tab_permission_out = None
 
-
     # =====================================================
     # STOCK OUT ENTRY
     # =====================================================
 
-  with tab_entry_out:
+    with tab_entry_out:
 
-    # =====================================================
-    # USER-WISE INSTRUMENT PERMISSION
-    # =====================================================
-
-    # Admin হলে সব Instrument দেখাবে
-    # Normal User হলে শুধু Admin permission দেওয়া
-    # Instrument দেখাবে
-
-    if st.session_state.role == "Admin":
-
-        instruments_out = (
-            get_instruments()
-        )
-
-    else:
-
-        instruments_out = (
-            get_user_allowed_instruments(
-                st.session_state.username
-            )
-        )
-
-
-    # =====================================================
-    # NO PERMISSION / NO INSTRUMENT
-    # =====================================================
-
-    if not instruments_out:
+        # =================================================
+        # USER-WISE INSTRUMENT PERMISSION
+        # =================================================
 
         if st.session_state.role == "Admin":
 
-            st.warning(
-                "No Instrument available."
-            )
+            instruments_out = get_instruments()
 
         else:
 
-            st.warning(
-                "You do not have permission "
-                "for any Instrument. "
-                "Please contact Admin."
+            instruments_out = get_user_allowed_instruments(
+                st.session_state.username
             )
 
-    else:
 
         # =================================================
-        # RESET AFTER SAVE
+        # NO PERMISSION / NO INSTRUMENT
         # =================================================
 
-        if st.session_state.pop(
-            "reset_stock_out",
-            False
-        ):
+        if not instruments_out:
 
-            st.session_state[
-                "stock_out_instrument"
-            ] = "-- Select Instrument --"
+            if st.session_state.role == "Admin":
 
-            st.session_state[
-                "stock_out_item"
-            ] = "-- Select Item --"
+                st.warning(
+                    "No Instrument available."
+                )
 
-            st.session_state[
-                "stock_out_qty"
-            ] = ""
+            else:
 
-            st.session_state[
-                "stock_out_remarks"
-            ] = ""
-
-
-        # =================================================
-        # INSTRUMENT
-        # =================================================
-
-        instrument_options_out = (
-            ["-- Select Instrument --"]
-            + instruments_out
-        )
-
-        instrument_out = st.selectbox(
-            "Instrument",
-            instrument_options_out,
-            key="stock_out_instrument"
-        )
-
-
-        if (
-            instrument_out
-            == "-- Select Instrument --"
-        ):
-
-            st.info(
-                "Please select an Instrument."
-            )
+                st.warning(
+                    "You do not have permission "
+                    "for any Instrument. "
+                    "Please contact Admin."
+                )
 
         else:
 
             # =============================================
-            # EXTRA PERMISSION SAFETY CHECK
-            # =============================================
-
-            instrument_permission_ok = True
-
-            if (
-                st.session_state.role
-                != "Admin"
-            ):
-
-                allowed_instruments_check = (
-                    get_user_allowed_instruments(
-                        st.session_state.username
-                    )
-                )
-
-                if (
-                    instrument_out
-                    not in allowed_instruments_check
-                ):
-
-                    instrument_permission_ok = False
-
-                    st.error(
-                        "You do not have permission "
-                        "for this Instrument."
-                    )
-
-
-            if instrument_permission_ok:
-
-                # =========================================
-                # ITEM
-                # =========================================
-
-                items_out = get_items(
-                    instrument_out
-                )
-
-                if not items_out:
-
-                    st.warning(
-                        "No Item available."
-                    )
-
-                else:
-
-                    item_options_out = (
-                        ["-- Select Item --"]
-                        + items_out
-                    )
-
-                    item_out = st.selectbox(
-                        "Item",
-                        item_options_out,
-                        key="stock_out_item"
-                    )
-
-
-                    if (
-                        item_out
-                        == "-- Select Item --"
-                    ):
-
-                        st.info(
-                            "Please select an Item."
-                        )
-
-                    else:
-
-                        # =================================
-                        # ITEM TYPE
-                        # =================================
-
-                        details_out = (
-                            get_item_details(
-                                instrument_out,
-                                item_out
-                            )
-                        )
-
-                        master_item_type_out = ""
-
-                        if details_out:
-
-                            master_item_type_out = (
-                                details_out.get(
-                                    "item_type",
-                                    ""
-                                )
-                                or ""
-                            )
-
-
-                        item_type_out = (
-                            st.text_input(
-                                "Item Type",
-                                value=(
-                                    master_item_type_out
-                                ),
-                                key=(
-                                    f"stock_out_item_type_"
-                                    f"{instrument_out}_"
-                                    f"{item_out}"
-                                )
-                            )
-                        )
-
-
-                        # =================================
-                        # AVAILABLE STOCK
-                        # =================================
-
-                        available_stock = (
-                            get_current_stock(
-                                instrument_out,
-                                item_out
-                            )
-                        )
-
-                        st.metric(
-                            "Available Stock",
-                            available_stock
-                        )
-
-
-                        # =================================
-                        # QUANTITY
-                        # =================================
-
-                        quantity_out_text = (
-                            st.text_input(
-                                "Quantity",
-                                key="stock_out_qty",
-                                placeholder=(
-                                    "Type quantity"
-                                )
-                            )
-                        )
-
-
-                        quantity_out = 0.0
-                        input_out_ok = True
-
-
-                        if (
-                            quantity_out_text
-                            .strip()
-                        ):
-
-                            try:
-
-                                quantity_out = float(
-                                    quantity_out_text
-                                    .replace(",", "")
-                                    .strip()
-                                )
-
-                                if (
-                                    quantity_out
-                                    <= 0
-                                ):
-
-                                    input_out_ok = False
-
-                                    st.warning(
-                                        "Quantity must be "
-                                        "greater than 0."
-                                    )
-
-                            except ValueError:
-
-                                input_out_ok = False
-
-                                st.warning(
-                                    "Quantity must "
-                                    "be numeric."
-                                )
-
-
-                        # =================================
-                        # LAST STOCK IN RATE - AUTOMATIC
-                        # =================================
-
-                        rate_out = (
-                            get_last_stock_in_rate(
-                                instrument_out,
-                                item_out
-                            )
-                        )
-
-
-                        st.text_input(
-                            "Rate (₹)",
-                            value=(
-                                f"{rate_out:.2f}"
-                            ),
-                            disabled=True,
-                            key=(
-                                f"stock_out_rate_display_"
-                                f"{instrument_out}_"
-                                f"{item_out}"
-                            )
-                        )
-
-
-                        if rate_out <= 0:
-
-                            st.warning(
-                                "No Stock IN Rate found "
-                                "for this Item."
-                            )
-
-
-                        # =================================
-                        # TOTAL VALUE - AUTOMATIC
-                        # =================================
-
-                        if (
-                            quantity_out_text.strip()
-                            and input_out_ok
-                        ):
-
-                            total_out_value = (
-                                quantity_out
-                                * rate_out
-                            )
-
-                            st.success(
-                                f"Total Value: "
-                                f"₹{total_out_value:,.2f}"
-                            )
-
-
-                        # =================================
-                        # REMARKS
-                        # =================================
-
-                        remarks_out = (
-                            st.text_input(
-                                (
-                                    "Issued To / "
-                                    "Department / Remarks"
-                                ),
-                                key=(
-                                    "stock_out_remarks"
-                                )
-                            )
-                        )
-
-
-                        # =================================
-                        # SAVE STOCK OUT
-                        # =================================
-
-                        if st.button(
-                            "💾 Save Stock OUT",
-                            type="primary"
-                        ):
-
-                            # -----------------------------
-                            # FINAL PERMISSION CHECK
-                            # -----------------------------
-
-                            save_permission_ok = True
-
-                            if (
-                                st.session_state.role
-                                != "Admin"
-                            ):
-
-                                final_allowed_instruments = (
-                                    get_user_allowed_instruments(
-                                        st.session_state.username
-                                    )
-                                )
-
-                                if (
-                                    instrument_out
-                                    not in
-                                    final_allowed_instruments
-                                ):
-
-                                    save_permission_ok = False
-
-                                    st.error(
-                                        "You do not have "
-                                        "permission for this "
-                                        "Instrument."
-                                    )
-
-
-                            if not save_permission_ok:
-
-                                pass
-
-                            elif (
-                                not
-                                item_type_out
-                                .strip()
-                            ):
-
-                                st.warning(
-                                    "Enter Item Type."
-                                )
-
-                            elif (
-                                not
-                                quantity_out_text
-                                .strip()
-                            ):
-
-                                st.warning(
-                                    "Enter Quantity."
-                                )
-
-                            elif not input_out_ok:
-
-                                pass
-
-                            elif quantity_out <= 0:
-
-                                st.warning(
-                                    "Quantity must be "
-                                    "greater than 0."
-                                )
-
-                            elif (
-                                quantity_out
-                                > available_stock
-                            ):
-
-                                st.error(
-                                    f"Insufficient Stock. "
-                                    f"Available: "
-                                    f"{available_stock:g}"
-                                )
-
-                            elif rate_out <= 0:
-
-                                st.error(
-                                    "Stock OUT cannot be "
-                                    "saved because no valid "
-                                    "Stock IN Rate was found."
-                                )
-
-                            else:
-
-                                (
-                                    supabase
-                                    .table(
-                                        "transactions"
-                                    )
-                                    .insert({
-
-                                        "txn_date":
-                                            datetime.now()
-                                            .astimezone()
-                                            .isoformat(),
-
-                                        "instrument_name":
-                                            instrument_out,
-
-                                        "item_name":
-                                            item_out,
-
-                                        "item_type":
-                                            item_type_out
-                                            .strip(),
-
-                                        "txn_type":
-                                            "OUT",
-
-                                        "quantity":
-                                            quantity_out,
-
-                                        "rate":
-                                            rate_out,
-
-                                        "remarks":
-                                            remarks_out
-                                            .strip(),
-
-                                        "username":
-                                            st.session_state
-                                            .username
-                                    })
-                                    .execute()
-                                )
-
-                                st.success(
-                                    "Stock OUT saved."
-                                )
-
-                                st.session_state[
-                                    "reset_stock_out"
-                                ] = True
-
-                                st.rerun()
-
-            # ---------------------------------------------
             # RESET AFTER SAVE
-            # ---------------------------------------------
+            # =============================================
 
             if st.session_state.pop(
                 "reset_stock_out",
@@ -3683,9 +3220,9 @@ elif menu == "Stock OUT":
                 ] = ""
 
 
-            # ---------------------------------------------
+            # =============================================
             # INSTRUMENT
-            # ---------------------------------------------
+            # =============================================
 
             instrument_options_out = (
                 ["-- Select Instrument --"]
@@ -3710,9 +3247,9 @@ elif menu == "Stock OUT":
 
             else:
 
-                # -----------------------------------------
+                # =========================================
                 # ITEM
-                # -----------------------------------------
+                # =========================================
 
                 items_out = get_items(
                     instrument_out
@@ -3749,15 +3286,13 @@ elif menu == "Stock OUT":
 
                     else:
 
-                        # ---------------------------------
+                        # =================================
                         # ITEM TYPE
-                        # ---------------------------------
+                        # =================================
 
-                        details_out = (
-                            get_item_details(
-                                instrument_out,
-                                item_out
-                            )
+                        details_out = get_item_details(
+                            instrument_out,
+                            item_out
                         )
 
                         master_item_type_out = ""
@@ -3773,24 +3308,20 @@ elif menu == "Stock OUT":
                             )
 
 
-                        item_type_out = (
-                            st.text_input(
-                                "Item Type",
-                                value=(
-                                    master_item_type_out
-                                ),
-                                key=(
-                                    f"stock_out_item_type_"
-                                    f"{instrument_out}_"
-                                    f"{item_out}"
-                                )
+                        item_type_out = st.text_input(
+                            "Item Type",
+                            value=master_item_type_out,
+                            key=(
+                                f"stock_out_item_type_"
+                                f"{instrument_out}_"
+                                f"{item_out}"
                             )
                         )
 
 
-                        # ---------------------------------
+                        # =================================
                         # AVAILABLE STOCK
-                        # ---------------------------------
+                        # =================================
 
                         available_stock = (
                             get_current_stock(
@@ -3805,29 +3336,22 @@ elif menu == "Stock OUT":
                         )
 
 
-                        # ---------------------------------
+                        # =================================
                         # QUANTITY
-                        # ---------------------------------
+                        # =================================
 
                         quantity_out_text = (
                             st.text_input(
                                 "Quantity",
                                 key="stock_out_qty",
-                                placeholder=(
-                                    "Type quantity"
-                                )
+                                placeholder="Type quantity"
                             )
                         )
-
 
                         quantity_out = 0.0
                         input_out_ok = True
 
-
-                        if (
-                            quantity_out_text
-                            .strip()
-                        ):
+                        if quantity_out_text.strip():
 
                             try:
 
@@ -3837,10 +3361,7 @@ elif menu == "Stock OUT":
                                     .strip()
                                 )
 
-                                if (
-                                    quantity_out
-                                    <= 0
-                                ):
+                                if quantity_out <= 0:
 
                                     input_out_ok = False
 
@@ -3858,9 +3379,9 @@ elif menu == "Stock OUT":
                                 )
 
 
-                        # ---------------------------------
+                        # =================================
                         # LAST STOCK IN RATE
-                        # ---------------------------------
+                        # =================================
 
                         rate_out = (
                             get_last_stock_in_rate(
@@ -3869,12 +3390,9 @@ elif menu == "Stock OUT":
                             )
                         )
 
-
                         st.text_input(
                             "Rate (₹)",
-                            value=(
-                                f"{rate_out:.2f}"
-                            ),
+                            value=f"{rate_out:.2f}",
                             disabled=True,
                             key=(
                                 f"stock_out_rate_display_"
@@ -3884,17 +3402,9 @@ elif menu == "Stock OUT":
                         )
 
 
-                        if rate_out <= 0:
-
-                            st.warning(
-                                "No Stock IN Rate found "
-                                "for this Item."
-                            )
-
-
-                        # ---------------------------------
+                        # =================================
                         # TOTAL VALUE
-                        # ---------------------------------
+                        # =================================
 
                         if (
                             quantity_out_text.strip()
@@ -3908,52 +3418,39 @@ elif menu == "Stock OUT":
 
                             st.success(
                                 f"Total Value: "
-                                f"₹"
-                                f"{total_out_value:,.2f}"
+                                f"₹{total_out_value:,.2f}"
                             )
 
 
-                        # ---------------------------------
+                        # =================================
                         # REMARKS
-                        # ---------------------------------
+                        # =================================
 
-                        remarks_out = (
-                            st.text_input(
-                                (
-                                    "Issued To / "
-                                    "Department / Remarks"
-                                ),
-                                key=(
-                                    "stock_out_remarks"
-                                )
-                            )
+                        remarks_out = st.text_input(
+                            (
+                                "Issued To / Department "
+                                "/ Remarks"
+                            ),
+                            key="stock_out_remarks"
                         )
 
 
-                        # ---------------------------------
-                        # SAVE STOCK OUT
-                        # ---------------------------------
+                        # =================================
+                        # SAVE
+                        # =================================
 
                         if st.button(
                             "💾 Save Stock OUT",
                             type="primary"
                         ):
 
-                            if (
-                                not
-                                item_type_out
-                                .strip()
-                            ):
+                            if not item_type_out.strip():
 
                                 st.warning(
                                     "Enter Item Type."
                                 )
 
-                            elif (
-                                not
-                                quantity_out_text
-                                .strip()
-                            ):
+                            elif not quantity_out_text.strip():
 
                                 st.warning(
                                     "Enter Quantity."
@@ -3963,17 +3460,7 @@ elif menu == "Stock OUT":
 
                                 pass
 
-                            elif quantity_out <= 0:
-
-                                st.warning(
-                                    "Quantity must be "
-                                    "greater than 0."
-                                )
-
-                            elif (
-                                quantity_out
-                                > available_stock
-                            ):
+                            elif quantity_out > available_stock:
 
                                 st.error(
                                     f"Insufficient Stock. "
@@ -3984,52 +3471,74 @@ elif menu == "Stock OUT":
                             elif rate_out <= 0:
 
                                 st.error(
-                                    "Stock OUT cannot be saved "
-                                    "because no valid Stock IN "
-                                    "Rate was found."
+                                    "No valid Stock IN "
+                                    "Rate found."
                                 )
 
                             else:
 
+                                # Final permission check
+                                if (
+                                    st.session_state.role
+                                    != "Admin"
+                                ):
+
+                                    final_allowed = (
+                                        get_user_allowed_instruments(
+                                            st.session_state.username
+                                        )
+                                    )
+
+                                    if (
+                                        instrument_out
+                                        not in final_allowed
+                                    ):
+
+                                        st.error(
+                                            "You do not have "
+                                            "permission for this "
+                                            "Instrument."
+                                        )
+
+                                        st.stop()
+
+
                                 (
                                     supabase
-                                    .table(
-                                        "transactions"
+                                    .table("transactions")
+                                    .insert(
+                                        {
+                                            "txn_date":
+                                                datetime.now()
+                                                .astimezone()
+                                                .isoformat(),
+
+                                            "instrument_name":
+                                                instrument_out,
+
+                                            "item_name":
+                                                item_out,
+
+                                            "item_type":
+                                                item_type_out.strip(),
+
+                                            "txn_type":
+                                                "OUT",
+
+                                            "quantity":
+                                                quantity_out,
+
+                                            "rate":
+                                                rate_out,
+
+                                            "remarks":
+                                                remarks_out.strip(),
+
+                                            "username":
+                                                st.session_state
+                                                .username
+                                        }
                                     )
-                                    .insert({
-
-                                        "txn_date":
-                                            datetime.now()
-                                            .astimezone()
-                                            .isoformat(),
-
-                                        "instrument_name":
-                                            instrument_out,
-
-                                        "item_name":
-                                            item_out,
-
-                                        "item_type":
-                                            item_type_out
-                                            .strip(),
-
-                                        "txn_type":
-                                            "OUT",
-
-                                        "quantity":
-                                            quantity_out,
-
-                                        "rate":
-                                            rate_out,
-
-                                        "remarks":
-                                            remarks_out
-                                            .strip(),
-
-                                        "username":
-                                            st.session_state
-                                            .username
-                                    })
                                     .execute()
                                 )
 
