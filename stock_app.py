@@ -5394,18 +5394,43 @@ elif menu == "Reports":
         "📊 Reports"
     )
 
+
+    # =====================================================
+    # USER-WISE ALLOWED INSTRUMENTS
+    # =====================================================
+
+    if st.session_state.role == "Admin":
+
+        report_allowed_instruments = (
+            get_instruments()
+        )
+
+    else:
+
+        report_allowed_instruments = (
+            get_user_allowed_instruments(
+                st.session_state.username
+            )
+        )
+
+
+    # =====================================================
+    # REPORT TYPE
+    # =====================================================
+
     report_name = st.selectbox(
         "Select Report",
         [
             "Instrument Wise Report",
             "Stock Wise Report",
             "User Wise Report"
-        ]
+        ],
+        key="main_report_type"
     )
 
 
     # =====================================================
-    # INSTRUMENT WISE
+    # INSTRUMENT WISE REPORT
     # =====================================================
 
     if (
@@ -5417,15 +5442,66 @@ elif menu == "Reports":
             "🔧 Instrument Wise Report"
         )
 
+
         from_date, to_date = (
             date_range_controls(
                 "instrument_report"
             )
         )
 
+
+        # ---------------------------------------------
+        # LOAD MASTER
+        # ---------------------------------------------
+
+        master = load_items_master()
+
+
+        # ---------------------------------------------
+        # USER-WISE MASTER RESTRICTION
+        # ---------------------------------------------
+
+        if (
+            st.session_state.role
+            != "Admin"
+            and not master.empty
+        ):
+
+            master = master[
+                master[
+                    "instrument_name"
+                ].isin(
+                    report_allowed_instruments
+                )
+            ].copy()
+
+
+        # ---------------------------------------------
+        # ITEM LIST
+        # ---------------------------------------------
+
+        report_item_list = []
+
+        if not master.empty:
+
+            report_item_list = sorted(
+                master[
+                    "item_name"
+                ]
+                .dropna()
+                .unique()
+                .tolist()
+            )
+
+
+        # ---------------------------------------------
+        # FILTERS
+        # ---------------------------------------------
+
         c1, c2, c3 = (
             st.columns(3)
         )
+
 
         with c1:
 
@@ -5433,9 +5509,14 @@ elif menu == "Reports":
                 st.selectbox(
                     "Instrument",
                     ["ALL"]
-                    + get_instruments()
+                    + report_allowed_instruments,
+                    key=(
+                        "instrument_wise_"
+                        "instrument_filter"
+                    )
                 )
             )
+
 
         with c2:
 
@@ -5446,9 +5527,14 @@ elif menu == "Reports":
                         "ALL",
                         "Spare",
                         "Consumable"
-                    ]
+                    ],
+                    key=(
+                        "instrument_wise_"
+                        "type_filter"
+                    )
                 )
             )
+
 
         with c3:
 
@@ -5456,13 +5542,40 @@ elif menu == "Reports":
                 st.selectbox(
                     "Item",
                     ["ALL"]
-                    + get_items()
+                    + report_item_list,
+                    key=(
+                        "instrument_wise_"
+                        "item_filter"
+                    )
                 )
             )
 
-        master = load_items_master()
+
+        # ---------------------------------------------
+        # LOAD TRANSACTIONS
+        # ---------------------------------------------
 
         tx = load_transactions()
+
+
+        # ---------------------------------------------
+        # USER-WISE TRANSACTION RESTRICTION
+        # ---------------------------------------------
+
+        if (
+            st.session_state.role
+            != "Admin"
+            and not tx.empty
+        ):
+
+            tx = tx[
+                tx[
+                    "instrument_name"
+                ].isin(
+                    report_allowed_instruments
+                )
+            ].copy()
+
 
         period_tx = filter_date_range(
             tx,
@@ -5470,7 +5583,13 @@ elif menu == "Reports":
             to_date
         )
 
+
+        # ---------------------------------------------
+        # CREATE REPORT
+        # ---------------------------------------------
+
         rows = []
+
 
         if not master.empty:
 
@@ -5483,6 +5602,21 @@ elif menu == "Reports":
                 item = row[
                     "item_name"
                 ]
+
+
+                # -------------------------------------
+                # EXTRA PERMISSION SAFETY
+                # -------------------------------------
+
+                if (
+                    st.session_state.role
+                    != "Admin"
+                    and inst
+                    not in report_allowed_instruments
+                ):
+
+                    continue
+
 
                 if period_tx.empty:
 
@@ -5504,12 +5638,14 @@ elif menu == "Reports":
                         )
                     ]
 
-                total_in = 0
-                total_out = 0
+
+                total_in = 0.0
+                total_out = 0.0
+
 
                 if not item_tx.empty:
 
-                    total_in = (
+                    total_in = float(
                         item_tx.loc[
                             item_tx[
                                 "txn_type"
@@ -5518,7 +5654,8 @@ elif menu == "Reports":
                         ].sum()
                     )
 
-                    total_out = (
+
+                    total_out = float(
                         item_tx.loc[
                             item_tx[
                                 "txn_type"
@@ -5526,6 +5663,7 @@ elif menu == "Reports":
                             "quantity"
                         ].sum()
                     )
+
 
                 stock_as_on = (
                     get_current_stock(
@@ -5535,12 +5673,14 @@ elif menu == "Reports":
                     )
                 )
 
+
                 minimum = float(
                     row[
                         "min_stock"
                     ]
                     or 0
                 )
+
 
                 status = (
                     "LOW STOCK"
@@ -5549,68 +5689,106 @@ elif menu == "Reports":
                     else "OK"
                 )
 
-                rows.append({
-                    "Instrument": inst,
-                    "Item": item,
-                    "Type":
-                        row[
-                            "item_type"
-                        ],
-                    "Unit":
-                        row["unit"],
-                    "Total IN":
-                        total_in,
-                    "Total OUT":
-                        total_out,
-                    "Stock As On":
-                        stock_as_on,
-                    "Minimum Stock":
-                        minimum,
-                    "Status":
-                        status
-                })
 
-        report_df = (
-            pd.DataFrame(rows)
+                rows.append(
+                    {
+                        "Instrument":
+                            inst,
+
+                        "Item":
+                            item,
+
+                        "Type":
+                            row[
+                                "item_type"
+                            ],
+
+                        "Unit":
+                            row[
+                                "unit"
+                            ],
+
+                        "Total IN":
+                            total_in,
+
+                        "Total OUT":
+                            total_out,
+
+                        "Stock As On":
+                            stock_as_on,
+
+                        "Minimum Stock":
+                            minimum,
+
+                        "Status":
+                            status
+                    }
+                )
+
+
+        report_df = pd.DataFrame(
+            rows
         )
 
+
+        # ---------------------------------------------
+        # APPLY DISPLAY FILTER
+        # ---------------------------------------------
+
         if not report_df.empty:
+
+            # Security restriction again
+            report_df = report_df[
+                report_df[
+                    "Instrument"
+                ].isin(
+                    report_allowed_instruments
+                )
+            ].copy()
+
 
             if (
                 instrument_filter
                 != "ALL"
             ):
 
-                report_df = (
+                report_df = report_df[
                     report_df[
-                        report_df[
-                            "Instrument"
-                        ]
-                        == instrument_filter
+                        "Instrument"
                     ]
-                )
+                    == instrument_filter
+                ]
 
-            if type_filter != "ALL":
 
-                report_df = (
+            if (
+                type_filter
+                != "ALL"
+            ):
+
+                report_df = report_df[
                     report_df[
-                        report_df[
-                            "Type"
-                        ]
-                        == type_filter
+                        "Type"
                     ]
-                )
+                    == type_filter
+                ]
 
-            if item_filter != "ALL":
 
-                report_df = (
+            if (
+                item_filter
+                != "ALL"
+            ):
+
+                report_df = report_df[
                     report_df[
-                        report_df[
-                            "Item"
-                        ]
-                        == item_filter
+                        "Item"
                     ]
-                )
+                    == item_filter
+                ]
+
+
+        # ---------------------------------------------
+        # SHOW REPORT
+        # ---------------------------------------------
 
         st.dataframe(
             report_df,
@@ -5618,9 +5796,13 @@ elif menu == "Reports":
             hide_index=True
         )
 
+
         csv = report_df.to_csv(
             index=False
-        ).encode("utf-8")
+        ).encode(
+            "utf-8"
+        )
+
 
         st.download_button(
             "⬇️ Download Instrument Wise Report",
@@ -5631,7 +5813,7 @@ elif menu == "Reports":
 
 
     # =====================================================
-    # STOCK WISE
+    # STOCK WISE REPORT
     # =====================================================
 
     elif (
@@ -5643,15 +5825,66 @@ elif menu == "Reports":
             "📦 Stock Wise Report"
         )
 
+
         from_date, to_date = (
             date_range_controls(
                 "stock_report"
             )
         )
 
+
+        # ---------------------------------------------
+        # LOAD MASTER
+        # ---------------------------------------------
+
+        master = load_items_master()
+
+
+        # ---------------------------------------------
+        # USER-WISE MASTER RESTRICTION
+        # ---------------------------------------------
+
+        if (
+            st.session_state.role
+            != "Admin"
+            and not master.empty
+        ):
+
+            master = master[
+                master[
+                    "instrument_name"
+                ].isin(
+                    report_allowed_instruments
+                )
+            ].copy()
+
+
+        # ---------------------------------------------
+        # ITEM LIST
+        # ---------------------------------------------
+
+        stock_report_item_list = []
+
+        if not master.empty:
+
+            stock_report_item_list = sorted(
+                master[
+                    "item_name"
+                ]
+                .dropna()
+                .unique()
+                .tolist()
+            )
+
+
+        # ---------------------------------------------
+        # FILTERS
+        # ---------------------------------------------
+
         c1, c2, c3 = (
             st.columns(3)
         )
+
 
         with c1:
 
@@ -5659,9 +5892,14 @@ elif menu == "Reports":
                 st.selectbox(
                     "Instrument",
                     ["ALL"]
-                    + get_instruments()
+                    + report_allowed_instruments,
+                    key=(
+                        "stock_wise_"
+                        "instrument_filter"
+                    )
                 )
             )
+
 
         with c2:
 
@@ -5672,9 +5910,14 @@ elif menu == "Reports":
                         "ALL",
                         "Spare",
                         "Consumable"
-                    ]
+                    ],
+                    key=(
+                        "stock_wise_"
+                        "type_filter"
+                    )
                 )
             )
+
 
         with c3:
 
@@ -5682,13 +5925,36 @@ elif menu == "Reports":
                 st.selectbox(
                     "Item",
                     ["ALL"]
-                    + get_items()
+                    + stock_report_item_list,
+                    key=(
+                        "stock_wise_"
+                        "item_filter"
+                    )
                 )
             )
 
-        master = load_items_master()
+
+        # ---------------------------------------------
+        # TRANSACTIONS
+        # ---------------------------------------------
 
         tx = load_transactions()
+
+
+        if (
+            st.session_state.role
+            != "Admin"
+            and not tx.empty
+        ):
+
+            tx = tx[
+                tx[
+                    "instrument_name"
+                ].isin(
+                    report_allowed_instruments
+                )
+            ].copy()
+
 
         period_tx = filter_date_range(
             tx,
@@ -5696,7 +5962,13 @@ elif menu == "Reports":
             to_date
         )
 
+
+        # ---------------------------------------------
+        # CREATE REPORT
+        # ---------------------------------------------
+
         rows = []
+
 
         if not master.empty:
 
@@ -5709,6 +5981,17 @@ elif menu == "Reports":
                 item = row[
                     "item_name"
                 ]
+
+
+                if (
+                    st.session_state.role
+                    != "Admin"
+                    and inst
+                    not in report_allowed_instruments
+                ):
+
+                    continue
+
 
                 if period_tx.empty:
 
@@ -5730,12 +6013,14 @@ elif menu == "Reports":
                         )
                     ]
 
-                total_in = 0
-                total_out = 0
+
+                total_in = 0.0
+                total_out = 0.0
+
 
                 if not item_tx.empty:
 
-                    total_in = (
+                    total_in = float(
                         item_tx.loc[
                             item_tx[
                                 "txn_type"
@@ -5744,7 +6029,8 @@ elif menu == "Reports":
                         ].sum()
                     )
 
-                    total_out = (
+
+                    total_out = float(
                         item_tx.loc[
                             item_tx[
                                 "txn_type"
@@ -5753,10 +6039,14 @@ elif menu == "Reports":
                         ].sum()
                     )
 
+
                 opening_date = (
                     from_date
-                    - timedelta(days=1)
+                    - timedelta(
+                        days=1
+                    )
                 )
+
 
                 opening_stock = (
                     get_current_stock(
@@ -5766,16 +6056,21 @@ elif menu == "Reports":
                     )
                 )
 
+
                 closing_stock = (
                     opening_stock
                     + total_in
                     - total_out
                 )
 
+
                 minimum = float(
-                    row["min_stock"]
+                    row[
+                        "min_stock"
+                    ]
                     or 0
                 )
+
 
                 status = (
                     "LOW STOCK"
@@ -5784,72 +6079,109 @@ elif menu == "Reports":
                     else "OK"
                 )
 
-                rows.append({
-                    "Instrument":
-                        inst,
-                    "Item":
-                        item,
-                    "Type":
-                        row[
-                            "item_type"
-                        ],
-                    "Unit":
-                        row["unit"],
-                    "Opening Stock":
-                        opening_stock,
-                    "Stock IN":
-                        total_in,
-                    "Stock OUT":
-                        total_out,
-                    "Closing Stock":
-                        closing_stock,
-                    "Minimum Stock":
-                        minimum,
-                    "Status":
-                        status
-                })
 
-        report_df = (
-            pd.DataFrame(rows)
+                rows.append(
+                    {
+                        "Instrument":
+                            inst,
+
+                        "Item":
+                            item,
+
+                        "Type":
+                            row[
+                                "item_type"
+                            ],
+
+                        "Unit":
+                            row[
+                                "unit"
+                            ],
+
+                        "Opening Stock":
+                            opening_stock,
+
+                        "Stock IN":
+                            total_in,
+
+                        "Stock OUT":
+                            total_out,
+
+                        "Closing Stock":
+                            closing_stock,
+
+                        "Minimum Stock":
+                            minimum,
+
+                        "Status":
+                            status
+                    }
+                )
+
+
+        report_df = pd.DataFrame(
+            rows
         )
 
+
+        # ---------------------------------------------
+        # APPLY FILTER
+        # ---------------------------------------------
+
         if not report_df.empty:
+
+            # Permission restriction
+            report_df = report_df[
+                report_df[
+                    "Instrument"
+                ].isin(
+                    report_allowed_instruments
+                )
+            ].copy()
+
 
             if (
                 instrument_filter
                 != "ALL"
             ):
 
-                report_df = (
+                report_df = report_df[
                     report_df[
-                        report_df[
-                            "Instrument"
-                        ]
-                        == instrument_filter
+                        "Instrument"
                     ]
-                )
+                    == instrument_filter
+                ]
 
-            if type_filter != "ALL":
 
-                report_df = (
+            if (
+                type_filter
+                != "ALL"
+            ):
+
+                report_df = report_df[
                     report_df[
-                        report_df[
-                            "Type"
-                        ]
-                        == type_filter
+                        "Type"
                     ]
-                )
+                    == type_filter
+                ]
 
-            if item_filter != "ALL":
 
-                report_df = (
+            if (
+                item_filter
+                != "ALL"
+            ):
+
+                report_df = report_df[
                     report_df[
-                        report_df[
-                            "Item"
-                        ]
-                        == item_filter
+                        "Item"
                     ]
-                )
+                    == item_filter
+                ]
+
+
+        # ---------------------------------------------
+        # SHOW
+        # ---------------------------------------------
 
         st.dataframe(
             report_df,
@@ -5857,9 +6189,13 @@ elif menu == "Reports":
             hide_index=True
         )
 
+
         csv = report_df.to_csv(
             index=False
-        ).encode("utf-8")
+        ).encode(
+            "utf-8"
+        )
+
 
         st.download_button(
             "⬇️ Download Stock Wise Report",
@@ -5870,7 +6206,7 @@ elif menu == "Reports":
 
 
     # =====================================================
-    # USER WISE
+    # USER WISE REPORT
     # =====================================================
 
     elif (
@@ -5882,13 +6218,39 @@ elif menu == "Reports":
             "👤 User Wise Report"
         )
 
+
         from_date, to_date = (
             date_range_controls(
                 "user_report"
             )
         )
 
+
+        # ---------------------------------------------
+        # LOAD TRANSACTIONS
+        # ---------------------------------------------
+
         tx = load_transactions()
+
+
+        # ---------------------------------------------
+        # USER-WISE INSTRUMENT RESTRICTION
+        # ---------------------------------------------
+
+        if (
+            st.session_state.role
+            != "Admin"
+            and not tx.empty
+        ):
+
+            tx = tx[
+                tx[
+                    "instrument_name"
+                ].isin(
+                    report_allowed_instruments
+                )
+            ].copy()
+
 
         filtered = filter_date_range(
             tx,
@@ -5896,18 +6258,34 @@ elif menu == "Reports":
             to_date
         )
 
+
+        # ---------------------------------------------
+        # USERS
+        # ---------------------------------------------
+
         usernames = []
+
 
         if not tx.empty:
 
             usernames = sorted(
-                tx["username"]
+                tx[
+                    "username"
+                ]
                 .dropna()
                 .unique()
                 .tolist()
             )
 
-        c1, c2 = st.columns(2)
+
+        # ---------------------------------------------
+        # FILTERS
+        # ---------------------------------------------
+
+        c1, c2 = (
+            st.columns(2)
+        )
+
 
         with c1:
 
@@ -5915,9 +6293,14 @@ elif menu == "Reports":
                 st.selectbox(
                     "User",
                     ["ALL"]
-                    + usernames
+                    + usernames,
+                    key=(
+                        "user_wise_"
+                        "user_filter"
+                    )
                 )
             )
+
 
         with c2:
 
@@ -5925,11 +6308,19 @@ elif menu == "Reports":
                 st.selectbox(
                     "Instrument",
                     ["ALL"]
-                    + get_instruments()
+                    + report_allowed_instruments,
+                    key=(
+                        "user_wise_"
+                        "instrument_filter"
+                    )
                 )
             )
 
-        c3, c4 = st.columns(2)
+
+        c3, c4 = (
+            st.columns(2)
+        )
+
 
         with c3:
 
@@ -5940,9 +6331,14 @@ elif menu == "Reports":
                         "ALL",
                         "Spare",
                         "Consumable"
-                    ]
+                    ],
+                    key=(
+                        "user_wise_"
+                        "type_filter"
+                    )
                 )
             )
+
 
         with c4:
 
@@ -5953,19 +6349,43 @@ elif menu == "Reports":
                         "ALL",
                         "IN",
                         "OUT"
-                    ]
+                    ],
+                    key=(
+                        "user_wise_"
+                        "transaction_filter"
+                    )
                 )
             )
 
+
+        # ---------------------------------------------
+        # APPLY FILTERS
+        # ---------------------------------------------
+
         if not filtered.empty:
 
-            if user_filter != "ALL":
+            # Permission restriction
+            filtered = filtered[
+                filtered[
+                    "instrument_name"
+                ].isin(
+                    report_allowed_instruments
+                )
+            ].copy()
+
+
+            if (
+                user_filter
+                != "ALL"
+            ):
 
                 filtered = filtered[
                     filtered[
                         "username"
-                    ] == user_filter
+                    ]
+                    == user_filter
                 ]
+
 
             if (
                 instrument_filter
@@ -5979,21 +6399,36 @@ elif menu == "Reports":
                     == instrument_filter
                 ]
 
-            if type_filter != "ALL":
+
+            if (
+                type_filter
+                != "ALL"
+            ):
 
                 filtered = filtered[
                     filtered[
                         "item_type"
-                    ] == type_filter
+                    ]
+                    == type_filter
                 ]
 
-            if txn_filter != "ALL":
+
+            if (
+                txn_filter
+                != "ALL"
+            ):
 
                 filtered = filtered[
                     filtered[
                         "txn_type"
-                    ] == txn_filter
+                    ]
+                    == txn_filter
                 ]
+
+
+        # ---------------------------------------------
+        # DISPLAY DATAFRAME
+        # ---------------------------------------------
 
         if filtered.empty:
 
@@ -6025,6 +6460,7 @@ elif menu == "Reports":
                 ]
             ].copy()
 
+
             user_df.columns = [
                 "Date",
                 "User",
@@ -6036,15 +6472,20 @@ elif menu == "Reports":
                 "Remarks"
             ]
 
+
         st.dataframe(
             user_df,
             width="stretch",
             hide_index=True
         )
 
+
         csv = user_df.to_csv(
             index=False
-        ).encode("utf-8")
+        ).encode(
+            "utf-8"
+        )
+
 
         st.download_button(
             "⬇️ Download User Wise Report",
@@ -6064,13 +6505,66 @@ elif menu == "Transaction Report":
         "📋 Transaction Report"
     )
 
+
+    # =====================================================
+    # USER-WISE INSTRUMENT PERMISSION
+    # =====================================================
+
+    if st.session_state.role == "Admin":
+
+        transaction_allowed_instruments = (
+            get_instruments()
+        )
+
+    else:
+
+        transaction_allowed_instruments = (
+            get_user_allowed_instruments(
+                st.session_state.username
+            )
+        )
+
+
+    # =====================================================
+    # DATE RANGE
+    # =====================================================
+
     from_date, to_date = (
         date_range_controls(
             "transaction_report"
         )
     )
 
+
+    # =====================================================
+    # LOAD TRANSACTIONS
+    # =====================================================
+
     tx = load_transactions()
+
+
+    # =====================================================
+    # SECURITY - RESTRICT USER INSTRUMENTS
+    # =====================================================
+
+    if (
+        st.session_state.role
+        != "Admin"
+        and not tx.empty
+    ):
+
+        tx = tx[
+            tx[
+                "instrument_name"
+            ].isin(
+                transaction_allowed_instruments
+            )
+        ].copy()
+
+
+    # =====================================================
+    # DATE FILTER
+    # =====================================================
 
     filtered = filter_date_range(
         tx,
@@ -6078,18 +6572,34 @@ elif menu == "Transaction Report":
         to_date
     )
 
+
+    # =====================================================
+    # USER LIST
+    # =====================================================
+
     usernames = []
+
 
     if not tx.empty:
 
         usernames = sorted(
-            tx["username"]
+            tx[
+                "username"
+            ]
             .dropna()
             .unique()
             .tolist()
         )
 
-    c1, c2 = st.columns(2)
+
+    # =====================================================
+    # FILTER ROW 1
+    # =====================================================
+
+    c1, c2 = (
+        st.columns(2)
+    )
+
 
     with c1:
 
@@ -6097,9 +6607,14 @@ elif menu == "Transaction Report":
             st.selectbox(
                 "Instrument",
                 ["ALL"]
-                + get_instruments()
+                + transaction_allowed_instruments,
+                key=(
+                    "transaction_report_"
+                    "instrument_filter"
+                )
             )
         )
+
 
     with c2:
 
@@ -6110,11 +6625,23 @@ elif menu == "Transaction Report":
                     "ALL",
                     "Spare",
                     "Consumable"
-                ]
+                ],
+                key=(
+                    "transaction_report_"
+                    "type_filter"
+                )
             )
         )
 
-    c3, c4 = st.columns(2)
+
+    # =====================================================
+    # FILTER ROW 2
+    # =====================================================
+
+    c3, c4 = (
+        st.columns(2)
+    )
+
 
     with c3:
 
@@ -6125,9 +6652,14 @@ elif menu == "Transaction Report":
                     "ALL",
                     "IN",
                     "OUT"
-                ]
+                ],
+                key=(
+                    "transaction_report_"
+                    "transaction_filter"
+                )
             )
         )
+
 
     with c4:
 
@@ -6135,43 +6667,105 @@ elif menu == "Transaction Report":
             st.selectbox(
                 "User",
                 ["ALL"]
-                + usernames
+                + usernames,
+                key=(
+                    "transaction_report_"
+                    "user_filter"
+                )
             )
         )
 
+
+    # =====================================================
+    # APPLY FILTERS
+    # =====================================================
+
     if not filtered.empty:
 
-        if instrument_filter != "ALL":
+        # -------------------------------------------------
+        # FINAL INSTRUMENT PERMISSION SECURITY
+        # -------------------------------------------------
+
+        filtered = filtered[
+            filtered[
+                "instrument_name"
+            ].isin(
+                transaction_allowed_instruments
+            )
+        ].copy()
+
+
+        # -------------------------------------------------
+        # INSTRUMENT
+        # -------------------------------------------------
+
+        if (
+            instrument_filter
+            != "ALL"
+        ):
 
             filtered = filtered[
                 filtered[
                     "instrument_name"
-                ] == instrument_filter
+                ]
+                == instrument_filter
             ]
 
-        if type_filter != "ALL":
+
+        # -------------------------------------------------
+        # ITEM TYPE
+        # -------------------------------------------------
+
+        if (
+            type_filter
+            != "ALL"
+        ):
 
             filtered = filtered[
                 filtered[
                     "item_type"
-                ] == type_filter
+                ]
+                == type_filter
             ]
 
-        if txn_filter != "ALL":
+
+        # -------------------------------------------------
+        # TRANSACTION TYPE
+        # -------------------------------------------------
+
+        if (
+            txn_filter
+            != "ALL"
+        ):
 
             filtered = filtered[
                 filtered[
                     "txn_type"
-                ] == txn_filter
+                ]
+                == txn_filter
             ]
 
-        if user_filter != "ALL":
+
+        # -------------------------------------------------
+        # USER
+        # -------------------------------------------------
+
+        if (
+            user_filter
+            != "ALL"
+        ):
 
             filtered = filtered[
                 filtered[
                     "username"
-                ] == user_filter
+                ]
+                == user_filter
             ]
+
+
+    # =====================================================
+    # DISPLAY TABLE
+    # =====================================================
 
     if filtered.empty:
 
@@ -6205,6 +6799,7 @@ elif menu == "Transaction Report":
             ]
         ].copy()
 
+
         display_df.columns = [
             "ID",
             "Date",
@@ -6217,6 +6812,7 @@ elif menu == "Transaction Report":
             "Remarks"
         ]
 
+
         display_df = (
             display_df.sort_values(
                 "ID",
@@ -6224,15 +6820,24 @@ elif menu == "Transaction Report":
             )
         )
 
+
     st.dataframe(
         display_df,
         width="stretch",
         hide_index=True
     )
 
+
+    # =====================================================
+    # DOWNLOAD
+    # =====================================================
+
     csv = display_df.to_csv(
         index=False
-    ).encode("utf-8")
+    ).encode(
+        "utf-8"
+    )
+
 
     st.download_button(
         "⬇️ Download Transaction Report",
@@ -6240,7 +6845,6 @@ elif menu == "Transaction Report":
         "transaction_report.csv",
         "text/csv"
     )
-
 
 # =========================================================
 # USER MANAGEMENT
