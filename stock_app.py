@@ -4821,6 +4821,210 @@ elif menu == "Stock OUT":
                     )
 
                     st.rerun()
+
+# =====================================================
+# USER-WISE INSTRUMENT PERMISSION
+# =====================================================
+
+if st.session_state.role == "Admin":
+
+    st.markdown("---")
+
+    st.subheader(
+        "🎯 User-wise Instrument Permission"
+    )
+
+    # ---------------------------------------------
+    # LOAD USERS
+    # ---------------------------------------------
+
+    user_response = (
+        supabase
+        .table("users")
+        .select("username, role")
+        .order("username")
+        .execute()
+    )
+
+    user_rows = user_response.data or []
+
+    normal_users = [
+        row
+        for row in user_rows
+        if row.get("role") != "Admin"
+    ]
+
+
+    if not normal_users:
+
+        st.info(
+            "No normal user available."
+        )
+
+    else:
+
+        user_list = [
+            row["username"]
+            for row in normal_users
+        ]
+
+        selected_user = st.selectbox(
+            "Select User",
+            user_list,
+            key="instrument_permission_user"
+        )
+
+
+        # -----------------------------------------
+        # LOAD ALL INSTRUMENTS
+        # -----------------------------------------
+
+        all_instruments = get_instruments()
+
+
+        # -----------------------------------------
+        # LOAD EXISTING USER PERMISSIONS
+        # -----------------------------------------
+
+        existing_permission_response = (
+            supabase
+            .table(
+                "user_instrument_permissions"
+            )
+            .select(
+                "instrument_name, can_stock_out"
+            )
+            .eq(
+                "username",
+                selected_user
+            )
+            .execute()
+        )
+
+        existing_permission_rows = (
+            existing_permission_response.data
+            or []
+        )
+
+
+        existing_allowed = {
+
+            row["instrument_name"]
+
+            for row in existing_permission_rows
+
+            if int(
+                row.get(
+                    "can_stock_out",
+                    0
+                )
+                or 0
+            ) == 1
+        }
+
+
+        st.write(
+            f"Select instruments allowed for "
+            f"**{selected_user}**:"
+        )
+
+
+        selected_instruments = []
+
+
+        # -----------------------------------------
+        # INSTRUMENT CHECKBOXES
+        # -----------------------------------------
+
+        for instrument_name in all_instruments:
+
+            is_checked = (
+                instrument_name
+                in existing_allowed
+            )
+
+            allowed = st.checkbox(
+                instrument_name,
+                value=is_checked,
+                key=(
+                    f"instrument_permission_"
+                    f"{selected_user}_"
+                    f"{instrument_name}"
+                )
+            )
+
+            if allowed:
+
+                selected_instruments.append(
+                    instrument_name
+                )
+
+
+        # -----------------------------------------
+        # SAVE PERMISSION
+        # -----------------------------------------
+
+        if st.button(
+            "💾 Save Instrument Permission",
+            type="primary",
+            key="save_instrument_permission"
+        ):
+
+            # First delete old permissions
+            (
+                supabase
+                .table(
+                    "user_instrument_permissions"
+                )
+                .delete()
+                .eq(
+                    "username",
+                    selected_user
+                )
+                .execute()
+            )
+
+
+            # Insert new permissions
+            if selected_instruments:
+
+                permission_data = [
+
+                    {
+                        "username":
+                            selected_user,
+
+                        "instrument_name":
+                            instrument_name,
+
+                        "can_stock_out":
+                            1
+                    }
+
+                    for instrument_name
+                    in selected_instruments
+                ]
+
+
+                (
+                    supabase
+                    .table(
+                        "user_instrument_permissions"
+                    )
+                    .insert(
+                        permission_data
+                    )
+                    .execute()
+                )
+
+
+            st.success(
+                f"Instrument permission saved "
+                f"for {selected_user}."
+            )
+
+            st.rerun()
+
 # =========================================================
 # CURRENT STOCK
 # =========================================================
