@@ -4945,208 +4945,422 @@ elif menu == "Stock OUT":
 
                     st.rerun()
 
-# =====================================================
-# USER-WISE INSTRUMENT PERMISSION
-# =====================================================
+    # =====================================================
+    # USER-WISE INSTRUMENT PERMISSION
+    # =====================================================
 
-if st.session_state.role == "Admin":
+    if st.session_state.role == "Admin":
 
-    st.markdown("---")
+        st.markdown("---")
 
-    st.subheader(
-        "🎯 User-wise Instrument Permission"
-    )
-
-    # ---------------------------------------------
-    # LOAD USERS
-    # ---------------------------------------------
-
-    user_response = (
-        supabase
-        .table("users")
-        .select("username, role")
-        .order("username")
-        .execute()
-    )
-
-    user_rows = user_response.data or []
-
-    normal_users = [
-        row
-        for row in user_rows
-        if row.get("role") != "Admin"
-    ]
-
-
-    if not normal_users:
+        st.subheader(
+            "🎯 User-wise Instrument Permission"
+        )
 
         st.info(
-            "No normal user available."
-        )
-
-    else:
-
-        user_list = [
-            row["username"]
-            for row in normal_users
-        ]
-
-        selected_user = st.selectbox(
-            "Select User",
-            user_list,
-            key="instrument_permission_user"
+            "Select a User and assign the Instruments "
+            "that the User is allowed to access."
         )
 
 
-        # -----------------------------------------
-        # LOAD ALL INSTRUMENTS
-        # -----------------------------------------
+        # =================================================
+        # LOAD NORMAL USERS
+        # =================================================
 
-        all_instruments = get_instruments()
-
-
-        # -----------------------------------------
-        # LOAD EXISTING USER PERMISSIONS
-        # -----------------------------------------
-
-        existing_permission_response = (
+        user_permission_response = (
             supabase
-            .table(
-                "user_instrument_permissions"
-            )
+            .table("users")
             .select(
-                "instrument_name, can_stock_out"
+                "username,role"
             )
-            .eq(
-                "username",
-                selected_user
+            .order(
+                "username"
             )
             .execute()
         )
 
-        existing_permission_rows = (
-            existing_permission_response.data
+
+        user_permission_rows = (
+            user_permission_response.data
             or []
         )
 
 
-        existing_allowed = {
+        normal_permission_users = [
 
-            row["instrument_name"]
+            row
 
-            for row in existing_permission_rows
+            for row
+            in user_permission_rows
 
-            if int(
-                row.get(
-                    "can_stock_out",
-                    0
-                )
-                or 0
-            ) == 1
-        }
+            if row.get("role")
+            != "Admin"
+        ]
 
 
-        st.write(
-            f"Select instruments allowed for "
-            f"**{selected_user}**:"
-        )
+        # =================================================
+        # NO USER
+        # =================================================
 
+        if not normal_permission_users:
 
-        selected_instruments = []
-
-
-        # -----------------------------------------
-        # INSTRUMENT CHECKBOXES
-        # -----------------------------------------
-
-        for instrument_name in all_instruments:
-
-            is_checked = (
-                instrument_name
-                in existing_allowed
+            st.info(
+                "No normal User available."
             )
 
-            allowed = st.checkbox(
-                instrument_name,
-                value=is_checked,
-                key=(
-                    f"instrument_permission_"
-                    f"{selected_user}_"
-                    f"{instrument_name}"
+
+        else:
+
+            # =============================================
+            # USER LIST
+            # =============================================
+
+            permission_user_list = [
+
+                row["username"]
+
+                for row
+                in normal_permission_users
+            ]
+
+
+            # =============================================
+            # SELECT USER
+            # =============================================
+
+            selected_permission_user = (
+                st.selectbox(
+                    "Select User",
+                    permission_user_list,
+                    key=(
+                        "user_management_"
+                        "instrument_permission_user"
+                    )
                 )
             )
 
-            if allowed:
 
-                selected_instruments.append(
-                    instrument_name
-                )
+            # =============================================
+            # LOAD ALL INSTRUMENTS
+            # =============================================
+
+            permission_all_instruments = (
+                get_instruments()
+            )
 
 
-        # -----------------------------------------
-        # SAVE PERMISSION
-        # -----------------------------------------
+            # =============================================
+            # LOAD EXISTING PERMISSIONS
+            # =============================================
 
-        if st.button(
-            "💾 Save Instrument Permission",
-            type="primary",
-            key="save_instrument_permission"
-        ):
-
-            # First delete old permissions
-            (
+            existing_permission_response = (
                 supabase
                 .table(
                     "user_instrument_permissions"
                 )
-                .delete()
+                .select(
+                    "instrument_name,"
+                    "can_stock_out"
+                )
                 .eq(
                     "username",
-                    selected_user
+                    selected_permission_user
                 )
                 .execute()
             )
 
 
-            # Insert new permissions
-            if selected_instruments:
-
-                permission_data = [
-
-                    {
-                        "username":
-                            selected_user,
-
-                        "instrument_name":
-                            instrument_name,
-
-                        "can_stock_out":
-                            1
-                    }
-
-                    for instrument_name
-                    in selected_instruments
-                ]
+            existing_permission_rows = (
+                existing_permission_response.data
+                or []
+            )
 
 
-                (
-                    supabase
-                    .table(
-                        "user_instrument_permissions"
+            existing_allowed_instruments = {
+
+                row["instrument_name"]
+
+                for row
+                in existing_permission_rows
+
+                if int(
+                    row.get(
+                        "can_stock_out",
+                        0
                     )
-                    .insert(
-                        permission_data
+                    or 0
+                ) == 1
+            }
+
+
+            # =============================================
+            # DISPLAY USER
+            # =============================================
+
+            st.markdown(
+                f"### Instrument Permission for "
+                f"{selected_permission_user}"
+            )
+
+
+            st.write(
+                "Tick the Instruments that this "
+                "User can access:"
+            )
+
+
+            # =============================================
+            # SELECT ALL / CLEAR ALL
+            # =============================================
+
+            permission_col1, permission_col2 = (
+                st.columns(2)
+            )
+
+
+            with permission_col1:
+
+                if st.button(
+                    "✅ Select All Instruments",
+                    key=(
+                        "permission_select_all_"
+                        + selected_permission_user
                     )
-                    .execute()
+                ):
+
+                    for instrument_name in (
+                        permission_all_instruments
+                    ):
+
+                        st.session_state[
+                            (
+                                "user_inst_permission_"
+                                + selected_permission_user
+                                + "_"
+                                + instrument_name
+                            )
+                        ] = True
+
+                    st.rerun()
+
+
+            with permission_col2:
+
+                if st.button(
+                    "❌ Clear All Instruments",
+                    key=(
+                        "permission_clear_all_"
+                        + selected_permission_user
+                    )
+                ):
+
+                    for instrument_name in (
+                        permission_all_instruments
+                    ):
+
+                        st.session_state[
+                            (
+                                "user_inst_permission_"
+                                + selected_permission_user
+                                + "_"
+                                + instrument_name
+                            )
+                        ] = False
+
+                    st.rerun()
+
+
+            st.markdown("---")
+
+
+            # =============================================
+            # INSTRUMENT CHECKBOXES
+            # =============================================
+
+            selected_permission_instruments = []
+
+
+            if not permission_all_instruments:
+
+                st.warning(
+                    "No Instrument available "
+                    "in Instrument Master."
                 )
 
 
-            st.success(
-                f"Instrument permission saved "
-                f"for {selected_user}."
+            else:
+
+                for instrument_name in (
+                    permission_all_instruments
+                ):
+
+                    checkbox_key = (
+                        "user_inst_permission_"
+                        + selected_permission_user
+                        + "_"
+                        + instrument_name
+                    )
+
+
+                    # -------------------------------------
+                    # SET DEFAULT VALUE ONLY FIRST TIME
+                    # -------------------------------------
+
+                    if (
+                        checkbox_key
+                        not in st.session_state
+                    ):
+
+                        st.session_state[
+                            checkbox_key
+                        ] = (
+                            instrument_name
+                            in
+                            existing_allowed_instruments
+                        )
+
+
+                    allowed_instrument = (
+                        st.checkbox(
+                            instrument_name,
+                            key=checkbox_key
+                        )
+                    )
+
+
+                    if allowed_instrument:
+
+                        selected_permission_instruments.append(
+                            instrument_name
+                        )
+
+
+            # =============================================
+            # PERMISSION SUMMARY
+            # =============================================
+
+            st.markdown("---")
+
+
+            st.write(
+                "Selected Instruments:"
             )
 
-            st.rerun()
+
+            if selected_permission_instruments:
+
+                for permission_instrument in (
+                    selected_permission_instruments
+                ):
+
+                    st.write(
+                        "✅ "
+                        + permission_instrument
+                    )
+
+            else:
+
+                st.warning(
+                    "No Instrument selected."
+                )
+
+
+            # =============================================
+            # SAVE PERMISSION
+            # =============================================
+
+            if st.button(
+                "💾 Save Instrument Permission",
+                type="primary",
+                key=(
+                    "user_management_"
+                    "save_instrument_permission"
+                )
+            ):
+
+                try:
+
+                    # =====================================
+                    # DELETE OLD PERMISSIONS
+                    # =====================================
+
+                    (
+                        supabase
+                        .table(
+                            "user_instrument_permissions"
+                        )
+                        .delete()
+                        .eq(
+                            "username",
+                            selected_permission_user
+                        )
+                        .execute()
+                    )
+
+
+                    # =====================================
+                    # INSERT NEW PERMISSIONS
+                    # =====================================
+
+                    if (
+                        selected_permission_instruments
+                    ):
+
+                        permission_insert_data = [
+
+                            {
+                                "username":
+                                    selected_permission_user,
+
+                                "instrument_name":
+                                    instrument_name,
+
+                                "can_stock_out":
+                                    1
+                            }
+
+                            for instrument_name
+                            in
+                            selected_permission_instruments
+                        ]
+
+
+                        (
+                            supabase
+                            .table(
+                                "user_instrument_permissions"
+                            )
+                            .insert(
+                                permission_insert_data
+                            )
+                            .execute()
+                        )
+
+
+                    # =====================================
+                    # SUCCESS
+                    # =====================================
+
+                    st.success(
+                        "✅ Instrument Permission "
+                        "saved successfully for "
+                        f"{selected_permission_user}."
+                    )
+
+
+                    st.rerun()
+
+
+                except Exception as e:
+
+                    st.error(
+                        "Unable to save Instrument "
+                        "Permission."
+                    )
+
+                    st.error(
+                        str(e)
+                    )
 
 # =====================================================
 # CURRENT STOCK
@@ -7546,3 +7760,360 @@ elif menu == "User Management":
         width="stretch",
         hide_index=True
     )
+    # =====================================================
+    # USER-WISE INSTRUMENT PERMISSION
+    # =====================================================
+
+    if st.session_state.role == "Admin":
+
+        st.markdown("---")
+
+        st.subheader(
+            "🎯 User-wise Instrument Permission"
+        )
+
+        st.info(
+            "Select a User and assign the Instruments "
+            "that the User is allowed to access."
+        )
+
+        # =================================================
+        # LOAD NORMAL USERS
+        # =================================================
+
+        user_permission_response = (
+            supabase
+            .table("users")
+            .select("username,role")
+            .order("username")
+            .execute()
+        )
+
+        user_permission_rows = (
+            user_permission_response.data
+            or []
+        )
+
+        normal_permission_users = [
+            row
+            for row in user_permission_rows
+            if row.get("role") != "Admin"
+        ]
+
+        # =================================================
+        # NO USER
+        # =================================================
+
+        if not normal_permission_users:
+
+            st.info(
+                "No normal User available."
+            )
+
+        else:
+
+            # =============================================
+            # USER LIST
+            # =============================================
+
+            permission_user_list = [
+                row["username"]
+                for row in normal_permission_users
+            ]
+
+            # =============================================
+            # SELECT USER
+            # =============================================
+
+            selected_permission_user = (
+                st.selectbox(
+                    "Select User",
+                    permission_user_list,
+                    key=(
+                        "user_management_"
+                        "instrument_permission_user"
+                    )
+                )
+            )
+
+            # =============================================
+            # LOAD ALL INSTRUMENTS
+            # =============================================
+
+            permission_all_instruments = (
+                get_instruments()
+            )
+
+            # =============================================
+            # LOAD EXISTING PERMISSIONS
+            # =============================================
+
+            existing_permission_response = (
+                supabase
+                .table(
+                    "user_instrument_permissions"
+                )
+                .select(
+                    "instrument_name,"
+                    "can_stock_out"
+                )
+                .eq(
+                    "username",
+                    selected_permission_user
+                )
+                .execute()
+            )
+
+            existing_permission_rows = (
+                existing_permission_response.data
+                or []
+            )
+
+            existing_allowed_instruments = {
+                row["instrument_name"]
+                for row
+                in existing_permission_rows
+                if int(
+                    row.get(
+                        "can_stock_out",
+                        0
+                    )
+                    or 0
+                ) == 1
+            }
+
+            # =============================================
+            # DISPLAY USER
+            # =============================================
+
+            st.markdown(
+                f"### Instrument Permission for "
+                f"{selected_permission_user}"
+            )
+
+            st.write(
+                "Tick the Instruments that this "
+                "User can access:"
+            )
+
+            # =============================================
+            # SELECT ALL / CLEAR ALL
+            # =============================================
+
+            permission_col1, permission_col2 = (
+                st.columns(2)
+            )
+
+            with permission_col1:
+
+                if st.button(
+                    "✅ Select All Instruments",
+                    key=(
+                        "permission_select_all_"
+                        + selected_permission_user
+                    )
+                ):
+
+                    for instrument_name in (
+                        permission_all_instruments
+                    ):
+
+                        st.session_state[
+                            (
+                                "user_inst_permission_"
+                                + selected_permission_user
+                                + "_"
+                                + instrument_name
+                            )
+                        ] = True
+
+                    st.rerun()
+
+            with permission_col2:
+
+                if st.button(
+                    "❌ Clear All Instruments",
+                    key=(
+                        "permission_clear_all_"
+                        + selected_permission_user
+                    )
+                ):
+
+                    for instrument_name in (
+                        permission_all_instruments
+                    ):
+
+                        st.session_state[
+                            (
+                                "user_inst_permission_"
+                                + selected_permission_user
+                                + "_"
+                                + instrument_name
+                            )
+                        ] = False
+
+                    st.rerun()
+
+            st.markdown("---")
+
+            # =============================================
+            # INSTRUMENT CHECKBOXES
+            # =============================================
+
+            selected_permission_instruments = []
+
+            if not permission_all_instruments:
+
+                st.warning(
+                    "No Instrument available "
+                    "in Instrument Master."
+                )
+
+            else:
+
+                for instrument_name in (
+                    permission_all_instruments
+                ):
+
+                    checkbox_key = (
+                        "user_inst_permission_"
+                        + selected_permission_user
+                        + "_"
+                        + instrument_name
+                    )
+
+                    if (
+                        checkbox_key
+                        not in st.session_state
+                    ):
+
+                        st.session_state[
+                            checkbox_key
+                        ] = (
+                            instrument_name
+                            in existing_allowed_instruments
+                        )
+
+                    allowed_instrument = (
+                        st.checkbox(
+                            instrument_name,
+                            key=checkbox_key
+                        )
+                    )
+
+                    if allowed_instrument:
+
+                        selected_permission_instruments.append(
+                            instrument_name
+                        )
+
+            # =============================================
+            # SELECTED SUMMARY
+            # =============================================
+
+            st.markdown("---")
+
+            st.write(
+                "Selected Instruments:"
+            )
+
+            if selected_permission_instruments:
+
+                for permission_instrument in (
+                    selected_permission_instruments
+                ):
+
+                    st.write(
+                        "✅ "
+                        + permission_instrument
+                    )
+
+            else:
+
+                st.warning(
+                    "No Instrument selected."
+                )
+
+            # =============================================
+            # SAVE PERMISSION
+            # =============================================
+
+            if st.button(
+                "💾 Save Instrument Permission",
+                type="primary",
+                key=(
+                    "user_management_"
+                    "save_instrument_permission"
+                )
+            ):
+
+                try:
+
+                    # =====================================
+                    # DELETE OLD PERMISSIONS
+                    # =====================================
+
+                    (
+                        supabase
+                        .table(
+                            "user_instrument_permissions"
+                        )
+                        .delete()
+                        .eq(
+                            "username",
+                            selected_permission_user
+                        )
+                        .execute()
+                    )
+
+                    # =====================================
+                    # INSERT NEW PERMISSIONS
+                    # =====================================
+
+                    if selected_permission_instruments:
+
+                        permission_insert_data = [
+                            {
+                                "username":
+                                    selected_permission_user,
+
+                                "instrument_name":
+                                    instrument_name,
+
+                                "can_stock_out":
+                                    1
+                            }
+
+                            for instrument_name
+                            in selected_permission_instruments
+                        ]
+
+                        (
+                            supabase
+                            .table(
+                                "user_instrument_permissions"
+                            )
+                            .insert(
+                                permission_insert_data
+                            )
+                            .execute()
+                        )
+
+                    st.success(
+                        "✅ Instrument Permission saved "
+                        f"successfully for "
+                        f"{selected_permission_user}."
+                    )
+
+                    st.rerun()
+
+                except Exception as e:
+
+                    st.error(
+                        "Unable to save Instrument "
+                        "Permission."
+                    )
+
+                    st.error(
+                        str(e)
+                    )
